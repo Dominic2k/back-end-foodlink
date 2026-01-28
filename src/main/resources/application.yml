@@ -1,0 +1,16 @@
+﻿spring:
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/your_database}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:password}
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:change-me}
+    expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+
+# TODO: Add environment-specific settings and secrets via env vars.
