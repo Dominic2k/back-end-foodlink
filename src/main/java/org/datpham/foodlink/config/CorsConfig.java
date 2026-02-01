@@ -1,4 +1,4 @@
-﻿package org.datpham.foodlink.config;
+package org.datpham.foodlink.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

@@ -1,4 +1,4 @@
-﻿package org.datpham.foodlink.dto.response;
+package org.datpham.foodlink.dto.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

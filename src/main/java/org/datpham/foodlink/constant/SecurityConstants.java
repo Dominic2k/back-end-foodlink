@@ -1,4 +1,4 @@
-﻿package org.datpham.foodlink.constant;
+package org.datpham.foodlink.constant;
 
 public final class SecurityConstants {
 

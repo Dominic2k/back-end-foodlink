@@ -1,4 +1,4 @@
-﻿package org.datpham.foodlink.security;
+package org.datpham.foodlink.security;
 
 import org.springframework.stereotype.Component;
 

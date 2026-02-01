@@ -1,4 +1,4 @@
-﻿package org.datpham.foodlink.common;
+package org.datpham.foodlink.common;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

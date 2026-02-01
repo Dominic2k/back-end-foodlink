@@ -1,4 +1,4 @@
-﻿package org.datpham.foodlink.config;
+package org.datpham.foodlink.config;
 
 import org.datpham.foodlink.filter.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;

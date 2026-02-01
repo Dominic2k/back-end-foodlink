@@ -1,4 +1,4 @@
-﻿package org.datpham.foodlink.validation;
+package org.datpham.foodlink.validation;
 
 import jakarta.validation.Constraint;
 import jakarta.validation.Payload;

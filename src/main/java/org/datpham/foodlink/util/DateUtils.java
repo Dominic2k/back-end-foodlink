@@ -1,4 +1,4 @@
-﻿package org.datpham.foodlink.util;
+package org.datpham.foodlink.util;
 
 import java.time.Clock;
 import java.time.LocalDate;

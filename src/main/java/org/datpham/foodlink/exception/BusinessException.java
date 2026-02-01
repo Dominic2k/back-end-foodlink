@@ -1,4 +1,4 @@
-﻿package org.datpham.foodlink.exception;
+package org.datpham.foodlink.exception;
 
 public class BusinessException extends RuntimeException {
     public BusinessException(String message) {
