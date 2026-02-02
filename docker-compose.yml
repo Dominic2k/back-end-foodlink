@@ -1,29 +1,29 @@
-﻿version: '3.8'
-
-services:
+﻿services:
   db:
     image: mysql:8.0
     container_name: mysql_db
     environment:
-      MYSQL_ROOT_PASSWORD: password
-      MYSQL_DATABASE: app_db
+      MYSQL_ROOT_PASSWORD: 123456
+      MYSQL_DATABASE: foodlink_db
+      MYSQL_USER: foodlink
+      MYSQL_PASSWORD: foodlink123
     ports:
       - "3306:3306"
     volumes:
       - db_data:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d
 
   app:
     build: .
-    image: spring-boot-base:latest
     container_name: spring_boot_app
     ports:
       - "8080:8080"
     depends_on:
       - db
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/app_db?useSSL=false&allowPublicKeyRetrieval=true
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: password
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/foodlink_db?useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: foodlink
+      SPRING_DATASOURCE_PASSWORD: foodlink123
 
 volumes:
   db_data:
