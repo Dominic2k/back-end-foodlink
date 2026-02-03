@@ -20,10 +20,11 @@
       - "8080:8080"
     depends_on:
       - db
+    env_file:
+      - .env
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/foodlink_db?useSSL=false&allowPublicKeyRetrieval=true
-      SPRING_DATASOURCE_USERNAME: foodlink
-      SPRING_DATASOURCE_PASSWORD: foodlink123
+      # Override DB_URL for Docker network (app connects to 'db' service, not localhost)
+      DB_URL: jdbc:mysql://db:3306/foodlink_db?useSSL=false&allowPublicKeyRetrieval=true
 
 volumes:
   db_data:

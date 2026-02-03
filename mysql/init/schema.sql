@@ -4,7 +4,7 @@
 -- USERS
 -- =========================
 CREATE TABLE users (
-                       user_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                       user_id VARCHAR(36) PRIMARY KEY,
                        email VARCHAR(255) NOT NULL UNIQUE,
                        password_hash VARCHAR(255) NOT NULL,
                        full_name VARCHAR(255) NOT NULL,
@@ -19,8 +19,8 @@ CREATE TABLE users (
 
 -- =========================
 CREATE TABLE family_members (
-                                member_id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                                user_id BIGINT NOT NULL,
+                                member_id VARCHAR(36) PRIMARY KEY,
+                                user_id VARCHAR(36) NOT NULL,
 
                                 display_name VARCHAR(255) NOT NULL,
                                 relationship ENUM('self', 'father', 'mother', 'child', 'other') NOT NULL,
@@ -43,7 +43,7 @@ CREATE TABLE family_members (
 -- HEALTH CONDITIONS
 -- =========================
 CREATE TABLE health_conditions (
-                                   condition_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                                   condition_id VARCHAR(36) PRIMARY KEY,
                                    code VARCHAR(50) UNIQUE,
                                    name VARCHAR(255) NOT NULL UNIQUE
 );
@@ -53,8 +53,8 @@ CREATE TABLE health_conditions (
 -- MEMBER CONDITIONS (M:N)
 -- =========================
 CREATE TABLE member_conditions (
-                                   member_id BIGINT NOT NULL,
-                                   condition_id BIGINT NOT NULL,
+                                   member_id VARCHAR(36) NOT NULL,
+                                   condition_id VARCHAR(36) NOT NULL,
                                    PRIMARY KEY (member_id, condition_id),
 
                                    CONSTRAINT fk_mc_member
@@ -71,7 +71,7 @@ CREATE TABLE member_conditions (
 -- INGREDIENTS
 -- =========================
 CREATE TABLE ingredients (
-                             ingredient_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                             ingredient_id VARCHAR(36) PRIMARY KEY,
                              name VARCHAR(255) NOT NULL UNIQUE,
                              category VARCHAR(100),
                              default_unit VARCHAR(50),
@@ -86,9 +86,9 @@ CREATE TABLE ingredients (
 -- MEMBER ALLERGIES
 -- =========================
 CREATE TABLE member_allergies (
-                                  allergy_id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                                  member_id BIGINT NOT NULL,
-                                  ingredient_id BIGINT NOT NULL,
+                                  allergy_id VARCHAR(36) PRIMARY KEY,
+                                  member_id VARCHAR(36) NOT NULL,
+                                  ingredient_id VARCHAR(36) NOT NULL,
                                   severity ENUM('mild', 'medium', 'severe') NOT NULL,
 
                                   UNIQUE (member_id, ingredient_id),
@@ -107,7 +107,7 @@ CREATE TABLE member_allergies (
 -- INGREDIENT NUTRITION
 -- =========================
 CREATE TABLE ingredient_nutrition (
-                                      ingredient_id BIGINT PRIMARY KEY,
+                                      ingredient_id VARCHAR(36) PRIMARY KEY,
                                       calories_per_100 DECIMAL(6,2),
                                       protein_g_per_100 DECIMAL(6,2),
                                       carb_g_per_100 DECIMAL(6,2),
@@ -123,7 +123,7 @@ CREATE TABLE ingredient_nutrition (
 -- RECIPES
 -- =========================
 CREATE TABLE recipes (
-                         recipe_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                         recipe_id VARCHAR(36) PRIMARY KEY,
                          name VARCHAR(255) NOT NULL,
                          description TEXT,
                          instructions TEXT,
@@ -132,7 +132,7 @@ CREATE TABLE recipes (
                          base_servings INT DEFAULT 1,
                          image_url VARCHAR(512),
 
-                         created_by BIGINT,
+                         created_by VARCHAR(36),
                          status ENUM('draft', 'published', 'archived') DEFAULT 'draft',
 
                          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -148,8 +148,8 @@ CREATE TABLE recipes (
 -- RECIPE INGREDIENTS
 -- =========================
 CREATE TABLE recipe_ingredients (
-                                    recipe_id BIGINT NOT NULL,
-                                    ingredient_id BIGINT NOT NULL,
+                                    recipe_id VARCHAR(36) NOT NULL,
+                                    ingredient_id VARCHAR(36) NOT NULL,
                                     quantity DECIMAL(10,2) NOT NULL,
                                     unit VARCHAR(50) NOT NULL,
                                     is_optional BOOLEAN DEFAULT FALSE,
@@ -170,8 +170,8 @@ CREATE TABLE recipe_ingredients (
 -- ORDERS
 -- =========================
 CREATE TABLE orders (
-                        order_id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                        user_id BIGINT NOT NULL,
+                        order_id VARCHAR(36) PRIMARY KEY,
+                        user_id VARCHAR(36) NOT NULL,
 
                         status ENUM('pending', 'confirmed', 'completed', 'canceled') DEFAULT 'pending',
                         delivery_address_text TEXT NOT NULL,
@@ -194,9 +194,9 @@ CREATE TABLE orders (
 -- ORDER ITEMS
 -- =========================
 CREATE TABLE order_items (
-                             order_item_id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                             order_id BIGINT NOT NULL,
-                             ingredient_id BIGINT NOT NULL,
+                             order_item_id VARCHAR(36) PRIMARY KEY,
+                             order_id VARCHAR(36) NOT NULL,
+                             ingredient_id VARCHAR(36) NOT NULL,
 
                              quantity DECIMAL(10,2) NOT NULL,
                              unit VARCHAR(50) NOT NULL,

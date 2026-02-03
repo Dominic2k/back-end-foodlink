@@ -19,6 +19,4 @@ public @interface PasswordValidation {
     String message() default "Password does not meet policy requirements";
     Class<?>[] groups() default {};
     Class<? extends Payload>[] payload() default {};
-
-    // TODO: Add extra attributes if the policy should be configurable.
 }
