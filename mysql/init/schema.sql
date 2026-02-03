@@ -211,4 +211,3 @@ CREATE TABLE order_items (
                                  FOREIGN KEY (ingredient_id) REFERENCES ingredients(ingredient_id)
                                      ON DELETE RESTRICT
 );
-

@@ -10,5 +10,5 @@
 
 app:
   jwt:
-    secret: ${JWT_SECRET:your-super-secret-jwt-key-change-this-in-production-32chars} # Secret cần >= 32 ký tự cho HS256
+    secret: ${JWT_SECRET:your-super-secret-jwt-key-change-this-in-production-32chars}
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}

@@ -1,13 +1,6 @@
 package org.datpham.foodlink.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import org.datpham.foodlink.enums.UserStatus;
@@ -45,4 +38,3 @@ public class User extends Auditable {
     @Column(name = "is_admin")
     private Boolean isAdmin = false;
 }
-

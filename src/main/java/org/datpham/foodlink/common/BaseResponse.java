@@ -4,23 +4,21 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
+
 @Getter
 @Setter
 @NoArgsConstructor
 public class BaseResponse<T> {
-    private T data;
+    private LocalDateTime timestamp;
+    private int status;
     private String message;
-    private boolean success;
+    private T data;
 
-    public BaseResponse(T data, String message) {
-        this.data = data;
+    public BaseResponse(T data, String message, int status) {
+        this.timestamp = LocalDateTime.now();
+        this.status = status;
         this.message = message;
-        this.success = true;
-    }
-
-    public BaseResponse(T data, String message, boolean success) {
         this.data = data;
-        this.message = message;
-        this.success = success;
     }
 }
