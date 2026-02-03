@@ -15,9 +15,9 @@ import java.time.LocalDateTime;
 public class User {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "user_id")
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "user_id", length = 36)
+    private String id;
 
     @Column(name = "email", nullable = false, unique = true, length = 255)
     private String email;
