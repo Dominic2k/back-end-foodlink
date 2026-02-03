@@ -33,4 +33,14 @@ public class AuthController {
                 new BaseResponse<>(response, "Login successful", 200)
         );
     }
+
+    @PostMapping("/logout")
+    public ResponseEntity<BaseResponse<String>> logout(@RequestHeader("Authorization") String authHeader) {
+
+        authService.logout(authHeader);
+
+        return ResponseEntity.ok(
+                new BaseResponse<>("Logout successful", "OK", 200)
+        );
+    }
 }

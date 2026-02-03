@@ -13,6 +13,13 @@
       - db_data:/var/lib/mysql
       - ./mysql/init:/docker-entrypoint-initdb.d
 
+  redis:
+    image: redis:7
+    container_name: redis_server
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    
   app:
     build: .
     container_name: spring_boot_app

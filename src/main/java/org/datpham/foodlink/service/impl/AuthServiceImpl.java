@@ -15,6 +15,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.datpham.foodlink.security.TokenBlacklistService;
+import java.util.Date;
 
 @Service
 @RequiredArgsConstructor
@@ -23,6 +25,7 @@ public class AuthServiceImpl implements AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final TokenBlacklistService tokenBlacklistService;
     
     @Override
     @Transactional
@@ -70,6 +73,20 @@ public class AuthServiceImpl implements AuthService {
                 user.getEmail(),
                 user.getIsAdmin() ? "ADMIN" : "USER"
         );
+    }
+
+    @Override
+    public void logout(String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new BusinessException("Invalid token", HttpStatus.BAD_REQUEST);
+        }
+
+        String token = authHeader.substring(7);
+
+        Date expirationDate = jwtTokenProvider.getExpirationDate(token);
+        long remainingTime = expirationDate.getTime() - System.currentTimeMillis();
+
+        tokenBlacklistService.blacklistToken(token, remainingTime);
     }
 }
 
