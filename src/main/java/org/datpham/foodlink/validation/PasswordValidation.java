@@ -16,7 +16,7 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 @Target({FIELD, PARAMETER})
 @Retention(RUNTIME)
 public @interface PasswordValidation {
-    String message() default "Password does not meet policy requirements";
+    String message() default "Password must be at least 8 characters and contain both letters and digits";
     Class<?>[] groups() default {};
     Class<? extends Payload>[] payload() default {};
 }
