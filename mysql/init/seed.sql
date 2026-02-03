@@ -5,45 +5,38 @@ USE foodlink_db;
 -- =========================
 INSERT INTO users (email, password_hash, full_name, status, is_admin)
 VALUES
-    ('admin@foodlink.com',
-     '$2a$10$ySMYKZUdlxfHMX6QUmwawuvP25UlEMlHRgQvnCQkve/..I4xsnlKe',
-     'FoodLink Admin',
-     'ACTIVE',
-     1),
-    ('user@foodlink.com',
-     '$2a$10$ySMYKZUdlxfHMX6QUmwawuvP25UlEMlHRgQvnCQkve/..I4xsnlKe',
-     'Test User',
-     'ACTIVE',
-     0);
+    (
+        'admin@foodlink.com',
+        '$2a$10$7qNQyYxH6F4dZP4vYwX4Oe6Vt2nT6zvZPpOZP5lZzM5pJ1ZJ9nJ6a',
+        'FoodLink Admin',
+        'active',
+        1
+    ),
+    (
+        'user@foodlink.com',
+        '$2a$10$7qNQyYxH6F4dZP4vYwX4Oe6Vt2nT6zvZPpOZP5lZzM5pJ1ZJ9nJ6a',
+        'Test User',
+        'active',
+        0
+    );
 
 -- =========================
--- HOUSEHOLD (for test user)
--- =========================
-INSERT INTO households (owner_user_id, name)
-SELECT user_id, 'Test User Family'
-FROM users
-WHERE email = 'user@foodlink.com';
-
--- =========================
--- HOUSEHOLD MEMBERS
+-- FAMILY MEMBERS
 -- =========================
 -- Self
-INSERT INTO household_members (user_id, display_name, relationship, gender, activity_level)
-SELECT user_id, 'Me', 'self', 'male', 'medium'
-FROM users
-WHERE email = 'user@foodlink.com';
+INSERT INTO family_members (user_id, display_name, relationship, gender, activity_level)
+SELECT user_id, 'Test User', 'self', 'male', 'medium'
+FROM users WHERE email = 'user@foodlink.com';
 
 -- Mother
-INSERT INTO household_members (user_id, display_name, relationship, gender, activity_level)
+INSERT INTO family_members (user_id, display_name, relationship, gender, activity_level)
 SELECT user_id, 'Mother', 'mother', 'female', 'low'
-FROM users
-WHERE email = 'user@foodlink.com';
+FROM users WHERE email = 'user@foodlink.com';
 
 -- Child
-INSERT INTO household_members (user_id, display_name, relationship, gender, activity_level)
+INSERT INTO family_members (user_id, display_name, relationship, gender, activity_level)
 SELECT user_id, 'Child', 'child', 'male', 'high'
-FROM users
-WHERE email = 'user@foodlink.com';
+FROM users WHERE email = 'user@foodlink.com';
 
 -- =========================
 -- HEALTH CONDITIONS
@@ -62,14 +55,14 @@ VALUES
 -- Test User has Hypertension
 INSERT INTO member_conditions (member_id, condition_id)
 SELECT m.member_id, c.condition_id
-FROM household_members m
+FROM family_members m
          JOIN health_conditions c ON c.code = 'HYP'
 WHERE m.display_name = 'Test User';
 
 -- Child has Obesity
 INSERT INTO member_conditions (member_id, condition_id)
 SELECT m.member_id, c.condition_id
-FROM household_members m
+FROM family_members m
          JOIN health_conditions c ON c.code = 'OBE'
 WHERE m.display_name = 'Child';
 
@@ -108,6 +101,6 @@ SELECT ingredient_id, 567, 26, 16, 49 FROM ingredients WHERE name = 'Peanut';
 -- Mother is allergic to Peanut
 INSERT INTO member_allergies (member_id, ingredient_id, severity)
 SELECT m.member_id, i.ingredient_id, 'severe'
-FROM household_members m
+FROM family_members m
          JOIN ingredients i ON i.name = 'Peanut'
 WHERE m.display_name = 'Mother';
