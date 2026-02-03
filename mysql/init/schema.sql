@@ -17,25 +17,11 @@ CREATE TABLE users (
 );
 
 -- =========================
--- HOUSEHOLDS
--- =========================
-CREATE TABLE households (
-                            household_id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                            owner_user_id BIGINT NOT NULL,
-                            name VARCHAR(255) NOT NULL,
-                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                            CONSTRAINT fk_household_owner
-                                FOREIGN KEY (owner_user_id) REFERENCES users(user_id)
-                                    ON DELETE CASCADE
-);
-
--- =========================
 -- HOUSEHOLD MEMBERS
 -- =========================
 CREATE TABLE household_members (
                                    member_id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                                   household_id BIGINT NOT NULL,
+                                   owner_user_id BIGINT NOT NULL,
                                    display_name VARCHAR(255) NOT NULL,
                                    relationship ENUM('self', 'father', 'mother', 'child', 'other') NOT NULL,
                                    gender ENUM('male', 'female', 'other'),
@@ -45,7 +31,7 @@ CREATE TABLE household_members (
                                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                                    CONSTRAINT fk_member_household
-                                       FOREIGN KEY (household_id) REFERENCES households(household_id)
+                                       FOREIGN KEY (owner_user_id) REFERENCES users(user_id)
                                            ON DELETE CASCADE
 );
 
@@ -162,7 +148,7 @@ CREATE TABLE recipe_ingredients (
 -- =========================
 CREATE TABLE orders (
                         order_id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                        household_id BIGINT NOT NULL,
+                        user_id BIGINT NOT NULL,
                         status ENUM('pending', 'confirmed', 'completed', 'canceled') DEFAULT 'pending',
                         delivery_address_text TEXT NOT NULL,
                         delivery_phone VARCHAR(50),
@@ -171,8 +157,8 @@ CREATE TABLE orders (
                         payment_method VARCHAR(50),
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                        CONSTRAINT fk_order_household
-                            FOREIGN KEY (household_id) REFERENCES households(household_id)
+                        CONSTRAINT fk_order_user
+                            FOREIGN KEY (user_id) REFERENCES users(user_id)
                                 ON DELETE CASCADE
 );
 

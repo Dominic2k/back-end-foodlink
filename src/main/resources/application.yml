@@ -1,8 +1,8 @@
 ﻿spring:
   datasource:
-    url: ${DB_URL:jdbc:mysql://localhost:3306/your_database}
+    url: ${DB_URL:jdbc:mysql://localhost:3306/foodlink_db?createDatabaseIfNotExist=true}
     username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:password}
+    password: ${DB_PASSWORD:123456}
   jpa:
     hibernate:
       ddl-auto: none

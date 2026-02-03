@@ -6,14 +6,14 @@ USE foodlink_db;
 INSERT INTO users (email, password_hash, full_name, status, is_admin)
 VALUES
     ('admin@foodlink.com',
-     '$2a$10$7qNQyYxH6F4dZP4vYwX4Oe6Vt2nT6zvZPpOZP5lZzM5pJ1ZJ9nJ6a',
+     '$2a$10$ySMYKZUdlxfHMX6QUmwawuvP25UlEMlHRgQvnCQkve/..I4xsnlKe',
      'FoodLink Admin',
-     'active',
+     'ACTIVE',
      1),
     ('user@foodlink.com',
-     '$2a$10$7qNQyYxH6F4dZP4vYwX4Oe6Vt2nT6zvZPpOZP5lZzM5pJ1ZJ9nJ6a',
+     '$2a$10$ySMYKZUdlxfHMX6QUmwawuvP25UlEMlHRgQvnCQkve/..I4xsnlKe',
      'Test User',
-     'active',
+     'ACTIVE',
      0);
 
 -- =========================
@@ -28,25 +28,22 @@ WHERE email = 'user@foodlink.com';
 -- HOUSEHOLD MEMBERS
 -- =========================
 -- Self
-INSERT INTO household_members (household_id, display_name, relationship, gender, activity_level)
-SELECT h.household_id, 'Test User', 'self', 'male', 'medium'
-FROM households h
-         JOIN users u ON h.owner_user_id = u.user_id
-WHERE u.email = 'user@foodlink.com';
+INSERT INTO household_members (user_id, display_name, relationship, gender, activity_level)
+SELECT user_id, 'Me', 'self', 'male', 'medium'
+FROM users
+WHERE email = 'user@foodlink.com';
 
 -- Mother
-INSERT INTO household_members (household_id, display_name, relationship, gender, activity_level)
-SELECT h.household_id, 'Mother', 'mother', 'female', 'low'
-FROM households h
-         JOIN users u ON h.owner_user_id = u.user_id
-WHERE u.email = 'user@foodlink.com';
+INSERT INTO household_members (user_id, display_name, relationship, gender, activity_level)
+SELECT user_id, 'Mother', 'mother', 'female', 'low'
+FROM users
+WHERE email = 'user@foodlink.com';
 
 -- Child
-INSERT INTO household_members (household_id, display_name, relationship, gender, activity_level)
-SELECT h.household_id, 'Child', 'child', 'male', 'high'
-FROM households h
-         JOIN users u ON h.owner_user_id = u.user_id
-WHERE u.email = 'user@foodlink.com';
+INSERT INTO household_members (user_id, display_name, relationship, gender, activity_level)
+SELECT user_id, 'Child', 'child', 'male', 'high'
+FROM users
+WHERE email = 'user@foodlink.com';
 
 -- =========================
 -- HEALTH CONDITIONS

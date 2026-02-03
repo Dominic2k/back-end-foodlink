@@ -5,10 +5,12 @@ import org.datpham.foodlink.dto.request.LoginRequest;
 import org.datpham.foodlink.dto.request.RegisterRequest;
 import org.datpham.foodlink.dto.response.AuthResponse;
 import org.datpham.foodlink.entity.Account;
+import org.datpham.foodlink.entity.User;
 import org.datpham.foodlink.enums.Role;
 import org.datpham.foodlink.enums.Status;
 import org.datpham.foodlink.exception.BusinessException;
 import org.datpham.foodlink.repository.AccountRepository;
+import org.datpham.foodlink.repository.UserRepository;
 import org.datpham.foodlink.security.JwtTokenProvider;
 import org.datpham.foodlink.service.AuthService;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -19,6 +21,7 @@ import org.springframework.stereotype.Service;
 public class AuthServiceImpl implements AuthService {
 
     private final AccountRepository accountRepository;
+    private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
 
@@ -42,16 +45,16 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public AuthResponse login(LoginRequest request) {
-        Account account = accountRepository.findByUsername(request.getUsername());
-        if (account == null) {
+        User user = userRepository.findByEmail(request.getEmail());
+        if (user == null) {
             throw new BusinessException("Invalid credentials");
         }
 
-        if (!passwordEncoder.matches(request.getPassword(), account.getPassword())) {
+        if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             throw new BusinessException("Invalid credentials");
         }
 
-        String token = jwtTokenProvider.generateToken(account.getUsername());
-        return new AuthResponse(token, "Bearer", account.getUsername(), account.getRole().name());
+        String token = jwtTokenProvider.generateToken(user.getEmail());
+        return new AuthResponse(token, "Bearer", user.getEmail(), user.getIsAdmin()? "admin" : "user");
     }
 }
