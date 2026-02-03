@@ -1,5 +1,6 @@
 package org.datpham.foodlink.dto.request;
 
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
@@ -9,12 +10,16 @@ import org.datpham.foodlink.validation.PasswordValidation;
 @Setter
 public class RegisterRequest {
 
-    @NotBlank(message = "Username must not be blank")
-    private String username;
+    @NotBlank(message = "Email is required")
+    @Email(message = "Invalid email format")
+    private String email;
 
-    @NotBlank(message = "Password must not be blank")
+    @NotBlank(message = "Password is required")
     @PasswordValidation
     private String password;
 
-    // TODO: Add extra profile fields if needed (email, phone, name...).
+    @NotBlank(message = "Full name is required")
+    private String fullName;
+
+    private String phone;
 }

@@ -3,7 +3,6 @@ package org.datpham.foodlink.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.datpham.foodlink.common.BaseResponse;
-import org.datpham.foodlink.dto.request.LoginRequest;
 import org.datpham.foodlink.dto.request.RegisterRequest;
 import org.datpham.foodlink.dto.response.AuthResponse;
 import org.datpham.foodlink.service.AuthService;
@@ -21,11 +20,5 @@ public class AuthController {
     public ResponseEntity<BaseResponse<AuthResponse>> register(@Valid @RequestBody RegisterRequest request) {
         AuthResponse response = authService.register(request);
         return ResponseEntity.ok(new BaseResponse<>(response, "Registered successfully"));
-    }
-
-    @PostMapping("/login")
-    public ResponseEntity<BaseResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request) {
-        AuthResponse response = authService.login(request);
-        return ResponseEntity.ok(new BaseResponse<>(response, "Login successful"));
     }
 }

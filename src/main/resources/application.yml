@@ -1,16 +1,17 @@
 ﻿spring:
   datasource:
-    url: ${DB_URL:jdbc:mysql://localhost:3306/your_database}
-    username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:password}
+    # Cấu hình mặc định trỏ về localhost để chạy được ngay từ IDE (kết nối vào DB Docker qua port 3306)
+    # Khi chạy trong Docker, biến môi trường SPRING_DATASOURCE_URL sẽ ghi đè giá trị này
+    url: ${DB_URL:jdbc:mysql://localhost:3306/foodlink_db?useSSL=false&allowPublicKeyRetrieval=true}
+    username: ${DB_USERNAME:foodlink}
+    password: ${DB_PASSWORD:foodlink123}
   jpa:
     hibernate:
-      ddl-auto: none
+      # Đổi thành update để tự động tạo bảng database
+      ddl-auto: update
     open-in-view: false
 
 app:
   jwt:
-    secret: ${JWT_SECRET:change-me}
+    secret: ${JWT_SECRET:your-super-secret-jwt-key-change-this-in-production-32chars} # Secret cần >= 32 ký tự cho HS256
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
-
-# TODO: Add environment-specific settings and secrets via env vars.
