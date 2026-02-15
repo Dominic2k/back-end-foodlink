@@ -43,7 +43,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<BaseResponse<Object>> handleException(Exception ex) {
         ex.printStackTrace(); // debug
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
-                new BaseResponse<>(null, "Internal server error", 500)
+                new BaseResponse<>(null, "Internal Error: " + ex.getMessage(), 500)
         );
     }
 }

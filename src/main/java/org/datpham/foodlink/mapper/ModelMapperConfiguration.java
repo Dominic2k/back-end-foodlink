@@ -6,8 +6,6 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class ModelMapperConfiguration {
-
-    // TODO: Customize mappings if you use ModelMapper.
     @Bean
     public ModelMapper createModelMapper() {
         return new ModelMapper();

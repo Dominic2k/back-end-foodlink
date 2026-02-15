@@ -1,5 +1,6 @@
 package org.datpham.foodlink.filter;
 
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -10,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import org.datpham.foodlink.constant.SecurityConstants;
 import org.datpham.foodlink.security.JwtTokenProvider;
 import org.datpham.foodlink.security.TokenBlacklistService;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -30,26 +32,31 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final UserDetailsService userDetailsService;
     private final TokenBlacklistService tokenBlacklistService;
 
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getServletPath();
+        return path.startsWith("/auth/");
+    }
+
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
-        String jwt = extractJwtFromRequest(request);
-
         try {
+            String jwt = extractJwtFromRequest(request);
+
             if (StringUtils.hasText(jwt)) {
 
                 if (tokenBlacklistService.isBlacklisted(jwt)) {
-                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                    response.getWriter().write("Token has been logged out");
+                    sendErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, "Token has been logged out");
                     return;
                 }
 
                 if (!jwtTokenProvider.validateToken(jwt)) {
-                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                    response.getWriter().write("Invalid token");
+                    sendErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, "Invalid token");
                     return;
                 }
 
@@ -66,16 +73,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
-
         } catch (UsernameNotFoundException e) {
             logger.error("Authentication Error: User not found -> {}", e.getMessage());
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.getWriter().write("Unauthorized: User associated with token not found.");
+            sendErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized: User associated with token not found.");
             return;
         } catch (Exception e) {
             logger.error("JWT authentication processing failed", e);
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.getWriter().write("Authentication failed due to an unexpected error.");
+            sendErrorResponse(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Authentication error: " + e.getMessage());
             return;
         }
 
@@ -88,5 +92,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return bearerToken.substring(SecurityConstants.TOKEN_PREFIX.length());
         }
         return null;
+    }
+
+    private void sendErrorResponse(HttpServletResponse response, int status, String message) throws IOException {
+        response.setStatus(status);
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        String json = String.format(
+                "{\"data\":null,\"message\":\"%s\",\"status\":%d}",
+                message.replace("\"", "\\\""), status
+        );
+        response.getWriter().write(json);
+        response.getWriter().flush();
     }
 }

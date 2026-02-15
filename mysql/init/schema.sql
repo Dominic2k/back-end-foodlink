@@ -9,6 +9,7 @@ CREATE TABLE users (
                        password_hash VARCHAR(255) NOT NULL,
                        full_name VARCHAR(255) NOT NULL,
                        phone VARCHAR(50),
+                       address VARCHAR(512),
                        avatar_url VARCHAR(512),
                        status ENUM('active', 'blocked') DEFAULT 'active',
                        is_admin BOOLEAN DEFAULT FALSE,
@@ -27,7 +28,10 @@ CREATE TABLE family_members (
 
                                 gender ENUM('male', 'female', 'other'),
                                 birth_date DATE,
+                                height_cm DECIMAL(5,2),
+                                weight_kg DECIMAL(5,2),
                                 activity_level ENUM('low', 'medium', 'high'),
+
                                 health_notes TEXT,
 
                                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
