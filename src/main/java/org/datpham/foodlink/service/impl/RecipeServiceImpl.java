@@ -6,6 +6,7 @@ import org.datpham.foodlink.dto.response.RecipeResponse;
 import org.datpham.foodlink.entity.Ingredient;
 import org.datpham.foodlink.entity.Recipe;
 import org.datpham.foodlink.entity.RecipeIngredient;
+import org.datpham.foodlink.entity.User;
 import org.datpham.foodlink.exception.BusinessException;
 import org.datpham.foodlink.repository.IngredientRepository;
 import org.datpham.foodlink.repository.RecipeRepository;
@@ -28,6 +29,7 @@ public class RecipeServiceImpl implements RecipeService {
     private final IngredientRepository ingredientRepository;
 
     @Override
+    @Transactional(readOnly = true)
     public Page<RecipeResponse> getAllRecipes(String search, String status, Pageable pageable) {
         Page<Recipe> recipes;
 
@@ -55,6 +57,7 @@ public class RecipeServiceImpl implements RecipeService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public RecipeResponse getRecipeById(String id) {
         Recipe recipe = recipeRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Recipe not found", HttpStatus.NOT_FOUND));
@@ -200,10 +203,19 @@ public class RecipeServiceImpl implements RecipeService {
                 .baseServings(recipe.getBaseServings())
                 .imageUrl(recipe.getImageUrl())
                 .status(recipe.getStatus() != null ? recipe.getStatus().name() : "draft")
-                .createdByEmail(recipe.getCreatedBy() != null ? recipe.getCreatedBy().getEmail() : null)
+                .createdByEmail(getCreatedByEmail(recipe))
                 .createdAt(recipe.getCreatedAt())
                 .updatedAt(recipe.getUpdatedAt())
                 .ingredients(ingredientItems)
                 .build();
+    }
+
+    private String getCreatedByEmail(Recipe recipe) {
+        try {
+            User user = recipe.getCreatedBy();
+            return user != null ? user.getEmail() : null;
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

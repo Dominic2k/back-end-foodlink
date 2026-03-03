@@ -3,6 +3,8 @@ package org.datpham.foodlink.controller;
 import lombok.RequiredArgsConstructor;
 import org.datpham.foodlink.common.BaseResponse;
 import org.datpham.foodlink.dto.response.OrderResponse;
+import org.datpham.foodlink.entity.ActivityLog;
+import org.datpham.foodlink.service.ActivityLogService;
 import org.datpham.foodlink.service.OrderService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -21,6 +23,7 @@ import java.util.Map;
 public class AdminOrderController {
 
     private final OrderService orderService;
+    private final ActivityLogService activityLogService;
 
     @GetMapping
     public ResponseEntity<BaseResponse<Page<OrderResponse>>> getAll(
@@ -47,8 +50,11 @@ public class AdminOrderController {
     public ResponseEntity<BaseResponse<OrderResponse>> updateStatus(
             @PathVariable String id,
             @RequestBody Map<String, String> body) {
+        String newStatus = body.get("status");
+        OrderResponse result = orderService.updateOrderStatus(id, newStatus);
+        activityLogService.log(ActivityLog.Action.STATUS_CHANGE, "Order", id,
+                "Changed order status to: " + newStatus);
         return ResponseEntity.ok(
-                new BaseResponse<>(orderService.updateOrderStatus(id, body.get("status")),
-                        "Status updated successfully", 200));
+                new BaseResponse<>(result, "Status updated successfully", 200));
     }
 }

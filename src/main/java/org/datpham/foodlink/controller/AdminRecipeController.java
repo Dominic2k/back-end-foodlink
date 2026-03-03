@@ -5,6 +5,8 @@ import lombok.RequiredArgsConstructor;
 import org.datpham.foodlink.common.BaseResponse;
 import org.datpham.foodlink.dto.request.RecipeRequest;
 import org.datpham.foodlink.dto.response.RecipeResponse;
+import org.datpham.foodlink.entity.ActivityLog;
+import org.datpham.foodlink.service.ActivityLogService;
 import org.datpham.foodlink.service.RecipeService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -23,6 +25,7 @@ import java.util.Map;
 public class AdminRecipeController {
 
     private final RecipeService recipeService;
+    private final ActivityLogService activityLogService;
 
     @GetMapping
     public ResponseEntity<BaseResponse<Page<RecipeResponse>>> getAll(
@@ -49,30 +52,41 @@ public class AdminRecipeController {
     @PostMapping
     public ResponseEntity<BaseResponse<RecipeResponse>> create(
             @Valid @RequestBody RecipeRequest request) {
+        RecipeResponse result = recipeService.createRecipe(request);
+        activityLogService.log(ActivityLog.Action.CREATE, "Recipe", result.getId(),
+                "Created recipe: " + request.getName());
         return ResponseEntity.ok(
-                new BaseResponse<>(recipeService.createRecipe(request), "Created successfully", 200));
+                new BaseResponse<>(result, "Created successfully", 200));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<BaseResponse<RecipeResponse>> update(
             @PathVariable String id,
             @Valid @RequestBody RecipeRequest request) {
+        RecipeResponse result = recipeService.updateRecipe(id, request);
+        activityLogService.log(ActivityLog.Action.UPDATE, "Recipe", id,
+                "Updated recipe: " + request.getName());
         return ResponseEntity.ok(
-                new BaseResponse<>(recipeService.updateRecipe(id, request), "Updated successfully", 200));
+                new BaseResponse<>(result, "Updated successfully", 200));
     }
 
     @PutMapping("/{id}/status")
     public ResponseEntity<BaseResponse<RecipeResponse>> updateStatus(
             @PathVariable String id,
             @RequestBody Map<String, String> body) {
+        String newStatus = body.get("status");
+        RecipeResponse result = recipeService.updateRecipeStatus(id, newStatus);
+        activityLogService.log(ActivityLog.Action.STATUS_CHANGE, "Recipe", id,
+                "Changed recipe status to: " + newStatus);
         return ResponseEntity.ok(
-                new BaseResponse<>(recipeService.updateRecipeStatus(id, body.get("status")),
-                        "Status updated successfully", 200));
+                new BaseResponse<>(result, "Status updated successfully", 200));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<BaseResponse<Void>> delete(@PathVariable String id) {
         recipeService.deleteRecipe(id);
+        activityLogService.log(ActivityLog.Action.DELETE, "Recipe", id,
+                "Deleted recipe #" + id.substring(0, 8));
         return ResponseEntity.ok(
                 new BaseResponse<>(null, "Deleted successfully", 200));
     }

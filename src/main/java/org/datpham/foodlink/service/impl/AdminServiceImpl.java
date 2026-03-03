@@ -13,6 +13,7 @@ import org.datpham.foodlink.exception.BusinessException;
 import org.datpham.foodlink.entity.Order;
 import org.datpham.foodlink.entity.Recipe;
 import org.datpham.foodlink.repository.*;
+import org.datpham.foodlink.service.ActivityLogService;
 import org.datpham.foodlink.service.AdminService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -20,9 +21,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAdjusters;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -35,6 +41,7 @@ public class AdminServiceImpl implements AdminService {
     private final IngredientRepository ingredientRepository;
     private final RecipeRepository recipeRepository;
     private final OrderRepository orderRepository;
+    private final ActivityLogService activityLogService;
 
     @Override
     public Page<AdminUserResponse> getAllUsers(String search, Pageable pageable) {
@@ -90,6 +97,10 @@ public class AdminServiceImpl implements AdminService {
         long totalOrders = orderRepository.count();
         long pendingOrders = orderRepository.countByStatus(Order.OrderStatus.pending);
 
+        // Activity stats
+        long todayActivities = activityLogService.countTodayActivities();
+        List<AdminStatsResponse.DailyActivityCount> dailyActivities = buildDailyActivities();
+
         return AdminStatsResponse.builder()
                 .totalUsers(totalUsers)
                 .activeUsers(activeUsers)
@@ -102,7 +113,38 @@ public class AdminServiceImpl implements AdminService {
                 .publishedRecipes(publishedRecipes)
                 .totalOrders(totalOrders)
                 .pendingOrders(pendingOrders)
+                .todayActivities(todayActivities)
+                .dailyActivities(dailyActivities)
                 .build();
+    }
+
+    private List<AdminStatsResponse.DailyActivityCount> buildDailyActivities() {
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("MM/dd");
+        // Initialize last 7 days with 0
+        Map<String, Long> dayMap = new LinkedHashMap<>();
+        for (int i = 6; i >= 0; i--) {
+            dayMap.put(LocalDate.now().minusDays(i).format(fmt), 0L);
+        }
+        // Fill actual data
+        List<Object[]> raw = activityLogService.getDailyActivityCounts(7);
+        for (Object[] row : raw) {
+            String dateStr;
+            if (row[0] instanceof java.sql.Date) {
+                dateStr = ((java.sql.Date) row[0]).toLocalDate().format(fmt);
+            } else {
+                dateStr = LocalDate.parse(row[0].toString()).format(fmt);
+            }
+            long count = ((Number) row[1]).longValue();
+            dayMap.put(dateStr, count);
+        }
+        List<AdminStatsResponse.DailyActivityCount> result = new ArrayList<>();
+        for (Map.Entry<String, Long> entry : dayMap.entrySet()) {
+            result.add(AdminStatsResponse.DailyActivityCount.builder()
+                    .date(entry.getKey())
+                    .count(entry.getValue())
+                    .build());
+        }
+        return result;
     }
 
     @Override

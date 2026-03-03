@@ -215,3 +215,17 @@ CREATE TABLE order_items (
                                  FOREIGN KEY (ingredient_id) REFERENCES ingredients(ingredient_id)
                                      ON DELETE RESTRICT
 );
+
+
+-- =========================
+-- ACTIVITY LOGS
+-- =========================
+CREATE TABLE activity_logs (
+                               log_id VARCHAR(36) PRIMARY KEY,
+                               action ENUM('CREATE', 'UPDATE', 'DELETE', 'STATUS_CHANGE', 'VIEW') NOT NULL,
+                               entity_type VARCHAR(50) NOT NULL,
+                               entity_id VARCHAR(36),
+                               description VARCHAR(500),
+                               performed_by VARCHAR(255) NOT NULL,
+                               created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

@@ -4,9 +4,12 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.datpham.foodlink.common.BaseResponse;
 import org.datpham.foodlink.dto.request.AdminUpdateStatusRequest;
+import org.datpham.foodlink.dto.response.ActivityLogResponse;
 import org.datpham.foodlink.dto.response.AdminStatsResponse;
 import org.datpham.foodlink.dto.response.AdminUserResponse;
 import org.datpham.foodlink.dto.response.FamilyMemberResponse;
+import org.datpham.foodlink.entity.ActivityLog;
+import org.datpham.foodlink.service.ActivityLogService;
 import org.datpham.foodlink.service.AdminService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -25,6 +28,7 @@ import java.util.List;
 public class AdminUserController {
 
     private final AdminService adminService;
+    private final ActivityLogService activityLogService;
 
     @GetMapping("/users")
     public ResponseEntity<BaseResponse<Page<AdminUserResponse>>> getAllUsers(
@@ -55,8 +59,11 @@ public class AdminUserController {
     public ResponseEntity<BaseResponse<AdminUserResponse>> updateUserStatus(
             @PathVariable String id,
             @Valid @RequestBody AdminUpdateStatusRequest request) {
+        AdminUserResponse result = adminService.updateUserStatus(id, request);
+        activityLogService.log(ActivityLog.Action.STATUS_CHANGE, "User", id,
+                "Changed user status to: " + request.getStatus() + " (" + result.getFullName() + ")");
         return ResponseEntity.ok(
-                new BaseResponse<>(adminService.updateUserStatus(id, request), "Status updated successfully", 200)
+                new BaseResponse<>(result, "Status updated successfully", 200)
         );
     }
 
@@ -72,6 +79,13 @@ public class AdminUserController {
     public ResponseEntity<BaseResponse<AdminStatsResponse>> getStats() {
         return ResponseEntity.ok(
                 new BaseResponse<>(adminService.getStats(), "Success", 200)
+        );
+    }
+
+    @GetMapping("/activity-logs")
+    public ResponseEntity<BaseResponse<List<ActivityLogResponse>>> getActivityLogs() {
+        return ResponseEntity.ok(
+                new BaseResponse<>(activityLogService.getRecentLogs(), "Success", 200)
         );
     }
 }

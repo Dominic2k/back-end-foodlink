@@ -4,6 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.util.List;
+
 @Getter
 @Builder
 @AllArgsConstructor
@@ -19,4 +21,14 @@ public class AdminStatsResponse {
     private long publishedRecipes;
     private long totalOrders;
     private long pendingOrders;
+    private long todayActivities;
+    private List<DailyActivityCount> dailyActivities;
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class DailyActivityCount {
+        private String date;
+        private long count;
+    }
 }

@@ -5,6 +5,8 @@ import lombok.RequiredArgsConstructor;
 import org.datpham.foodlink.common.BaseResponse;
 import org.datpham.foodlink.dto.request.IngredientRequest;
 import org.datpham.foodlink.dto.response.IngredientResponse;
+import org.datpham.foodlink.entity.ActivityLog;
+import org.datpham.foodlink.service.ActivityLogService;
 import org.datpham.foodlink.service.IngredientService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 public class AdminIngredientController {
 
     private final IngredientService ingredientService;
+    private final ActivityLogService activityLogService;
 
     @GetMapping
     public ResponseEntity<BaseResponse<Page<IngredientResponse>>> getAll(
@@ -46,21 +49,29 @@ public class AdminIngredientController {
     @PostMapping
     public ResponseEntity<BaseResponse<IngredientResponse>> create(
             @Valid @RequestBody IngredientRequest request) {
+        IngredientResponse result = ingredientService.createIngredient(request);
+        activityLogService.log(ActivityLog.Action.CREATE, "Ingredient", result.getId(),
+                "Created ingredient: " + request.getName());
         return ResponseEntity.ok(
-                new BaseResponse<>(ingredientService.createIngredient(request), "Created successfully", 200));
+                new BaseResponse<>(result, "Created successfully", 200));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<BaseResponse<IngredientResponse>> update(
             @PathVariable String id,
             @Valid @RequestBody IngredientRequest request) {
+        IngredientResponse result = ingredientService.updateIngredient(id, request);
+        activityLogService.log(ActivityLog.Action.UPDATE, "Ingredient", id,
+                "Updated ingredient: " + request.getName());
         return ResponseEntity.ok(
-                new BaseResponse<>(ingredientService.updateIngredient(id, request), "Updated successfully", 200));
+                new BaseResponse<>(result, "Updated successfully", 200));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<BaseResponse<Void>> delete(@PathVariable String id) {
         ingredientService.deleteIngredient(id);
+        activityLogService.log(ActivityLog.Action.DELETE, "Ingredient", id,
+                "Deleted ingredient #" + id.substring(0, 8));
         return ResponseEntity.ok(
                 new BaseResponse<>(null, "Deleted successfully", 200));
     }
