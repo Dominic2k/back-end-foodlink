@@ -59,4 +59,7 @@ public class FamilyMember extends Auditable {
         inverseJoinColumns = @JoinColumn(name = "condition_id")
     )
     private java.util.Set<HealthCondition> healthConditions = new java.util.HashSet<>();
+
+    @OneToMany(mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private java.util.Set<MemberAllergy> allergies = new java.util.HashSet<>();
 }

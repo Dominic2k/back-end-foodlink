@@ -6,6 +6,7 @@ import org.datpham.foodlink.common.BaseResponse;
 import org.datpham.foodlink.dto.request.FamilyMemberRequest;
 import org.datpham.foodlink.dto.response.FamilyMemberResponse;
 import org.datpham.foodlink.dto.response.HealthConditionResponse;
+import org.datpham.foodlink.dto.response.IngredientResponse;
 import org.datpham.foodlink.service.FamilyMemberService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -57,4 +58,12 @@ public class FamilyMemberController {
                 new BaseResponse<>(familyMemberService.getAllConditions(), "Success", 200)
         );
     }
+
+    @GetMapping("/ingredients")
+    public ResponseEntity<BaseResponse<List<IngredientResponse>>> getAllIngredients() {
+        return ResponseEntity.ok(
+                new BaseResponse<>(familyMemberService.getAllIngredients(), "Success", 200)
+        );
+    }
 }
+

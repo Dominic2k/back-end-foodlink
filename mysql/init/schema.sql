@@ -131,6 +131,7 @@ CREATE TABLE recipes (
                          name VARCHAR(255) NOT NULL,
                          description TEXT,
                          instructions TEXT,
+                            category_id VARCHAR(36),
                          prep_time_min INT,
                          cook_time_min INT,
                          base_servings INT DEFAULT 1,
@@ -168,7 +169,6 @@ CREATE TABLE recipe_ingredients (
                                         FOREIGN KEY (ingredient_id) REFERENCES ingredients(ingredient_id)
                                             ON DELETE CASCADE
 );
-
 
 -- =========================
 -- ORDERS

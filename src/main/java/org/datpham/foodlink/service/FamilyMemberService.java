@@ -3,6 +3,7 @@ package org.datpham.foodlink.service;
 import org.datpham.foodlink.dto.request.FamilyMemberRequest;
 import org.datpham.foodlink.dto.response.FamilyMemberResponse;
 import org.datpham.foodlink.dto.response.HealthConditionResponse;
+import org.datpham.foodlink.dto.response.IngredientResponse;
 
 import java.util.List;
 
@@ -12,4 +13,6 @@ public interface FamilyMemberService {
     FamilyMemberResponse updateFamilyMember(String id, FamilyMemberRequest request);
     void deleteFamilyMember(String id);
     List<HealthConditionResponse> getAllConditions();
+    List<IngredientResponse> getAllIngredients();
 }
+
