@@ -4,13 +4,15 @@ import lombok.RequiredArgsConstructor;
 import org.datpham.foodlink.dto.request.FamilyMemberRequest;
 import org.datpham.foodlink.dto.response.FamilyMemberResponse;
 import org.datpham.foodlink.dto.response.HealthConditionResponse;
-import org.datpham.foodlink.entity.FamilyMember;
-import org.datpham.foodlink.entity.HealthCondition;
-import org.datpham.foodlink.entity.User;
+import org.datpham.foodlink.dto.response.IngredientResponse;
+import org.datpham.foodlink.dto.response.MemberAllergyResponse;
+import org.datpham.foodlink.entity.*;
 import org.datpham.foodlink.enums.Relationship;
 import org.datpham.foodlink.exception.BusinessException;
 import org.datpham.foodlink.repository.FamilyMemberRepository;
 import org.datpham.foodlink.repository.HealthConditionRepository;
+import org.datpham.foodlink.repository.IngredientRepository;
+import org.datpham.foodlink.repository.MemberAllergyRepository;
 import org.datpham.foodlink.repository.UserRepository;
 import org.datpham.foodlink.service.FamilyMemberService;
 import org.springframework.http.HttpStatus;
@@ -29,6 +31,8 @@ public class FamilyMemberServiceImpl implements FamilyMemberService {
 
     private final FamilyMemberRepository familyMemberRepository;
     private final HealthConditionRepository healthConditionRepository;
+    private final IngredientRepository ingredientRepository;
+    private final MemberAllergyRepository memberAllergyRepository;
     private final UserRepository userRepository;
 
     @Override
@@ -64,6 +68,10 @@ public class FamilyMemberServiceImpl implements FamilyMemberService {
         FamilyMember member = new FamilyMember();
         member.setUser(user);
         updateMemberFields(member, request);
+        member = familyMemberRepository.save(member);
+
+        // Handle allergies after member is saved (so we have an ID)
+        updateMemberAllergies(member, request);
         
         return toResponse(familyMemberRepository.save(member));
     }
@@ -85,6 +93,7 @@ public class FamilyMemberServiceImpl implements FamilyMemberService {
         }
 
         updateMemberFields(member, request);
+        updateMemberAllergies(member, request);
         return toResponse(familyMemberRepository.save(member));
     }
 
@@ -117,6 +126,20 @@ public class FamilyMemberServiceImpl implements FamilyMemberService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public List<IngredientResponse> getAllIngredients() {
+        return ingredientRepository.findAll().stream()
+                .map(i -> IngredientResponse.builder()
+                        .id(i.getId())
+                        .name(i.getName())
+                        .category(i.getCategory())
+                        .defaultUnit(i.getDefaultUnit())
+                        .imageUrl(i.getImageUrl())
+                        .isActive(i.getIsActive())
+                        .build())
+                .collect(Collectors.toList());
+    }
+
     private User getCurrentUser() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         return userRepository.findByEmail(email)
@@ -139,6 +162,31 @@ public class FamilyMemberServiceImpl implements FamilyMemberService {
         }
     }
 
+    private void updateMemberAllergies(FamilyMember member, FamilyMemberRequest request) {
+        if (request.getAllergies() != null) {
+            // Delete existing allergies directly via repository and flush to DB
+            // This ensures DELETEs execute BEFORE INSERTs, avoiding UNIQUE constraint violations
+            memberAllergyRepository.deleteByMemberId(member.getId());
+            memberAllergyRepository.flush();
+
+            // Clear the in-memory collection to stay in sync
+            member.getAllergies().clear();
+
+            // Add new allergies
+            request.getAllergies().forEach(allergyReq -> {
+                Ingredient ingredient = ingredientRepository.findById(allergyReq.getIngredientId())
+                        .orElseThrow(() -> new BusinessException(
+                                "Ingredient not found: " + allergyReq.getIngredientId(), HttpStatus.BAD_REQUEST));
+
+                MemberAllergy allergy = new MemberAllergy();
+                allergy.setMember(member);
+                allergy.setIngredient(ingredient);
+                allergy.setSeverity(allergyReq.getSeverity());
+                member.getAllergies().add(allergy);
+            });
+        }
+    }
+
     private FamilyMemberResponse toResponse(FamilyMember member) {
         return FamilyMemberResponse.builder()
                 .id(member.getId())
@@ -155,6 +203,14 @@ public class FamilyMemberServiceImpl implements FamilyMemberService {
                                 .id(c.getId())
                                 .code(c.getCode())
                                 .name(c.getName())
+                                .build())
+                        .collect(Collectors.toSet()))
+                .allergies(member.getAllergies().stream()
+                        .map(a -> MemberAllergyResponse.builder()
+                                .id(a.getId())
+                                .ingredientId(a.getIngredient().getId())
+                                .ingredientName(a.getIngredient().getName())
+                                .severity(a.getSeverity())
                                 .build())
                         .collect(Collectors.toSet()))
                 .build();

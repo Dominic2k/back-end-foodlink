@@ -11,6 +11,7 @@ import org.datpham.foodlink.enums.Relationship;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Set;
 
 @Getter
@@ -37,4 +38,6 @@ public class FamilyMemberRequest {
     private String healthNotes;
 
     private Set<String> conditionIds;
+
+    private List<AllergyRequest> allergies;
 }

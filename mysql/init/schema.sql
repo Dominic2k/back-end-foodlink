@@ -169,7 +169,6 @@ CREATE TABLE recipe_ingredients (
                                             ON DELETE CASCADE
 );
 
-
 -- =========================
 -- ORDERS
 -- =========================

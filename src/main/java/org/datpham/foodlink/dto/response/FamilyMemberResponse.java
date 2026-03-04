@@ -25,4 +25,5 @@ public class FamilyMemberResponse {
     private ActivityLevel activityLevel;
     private String healthNotes;
     private Set<HealthConditionResponse> healthConditions;
+    private Set<MemberAllergyResponse> allergies;
 }
