@@ -131,7 +131,6 @@ CREATE TABLE recipes (
                          name VARCHAR(255) NOT NULL,
                          description TEXT,
                          instructions TEXT,
-                            category_id VARCHAR(36),
                          prep_time_min INT,
                          cook_time_min INT,
                          base_servings INT DEFAULT 1,
