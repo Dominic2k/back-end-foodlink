@@ -58,3 +58,11 @@ Authorization: Bearer {{token}}
   "healthNotes": "Dị ứng hải sản",
   "conditionIds": []
 }
+
+### Evaluate recommended dishes by AI (store score/result)
+POST http://localhost:8080/recommendations/evaluate
+Authorization: Bearer {{token}}
+
+### Re-evaluate recommended dishes by AI (manual button)
+POST http://localhost:8080/recommendations/re-evaluate
+Authorization: Bearer {{token}}

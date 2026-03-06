@@ -1,6 +1,7 @@
 package org.datpham.foodlink.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.datpham.foodlink.dto.request.FamilyMemberRequest;
 import org.datpham.foodlink.dto.response.FamilyMemberResponse;
 import org.datpham.foodlink.dto.response.HealthConditionResponse;
@@ -8,6 +9,7 @@ import org.datpham.foodlink.dto.response.IngredientResponse;
 import org.datpham.foodlink.dto.response.MemberAllergyResponse;
 import org.datpham.foodlink.entity.*;
 import org.datpham.foodlink.enums.Relationship;
+import org.datpham.foodlink.event.FamilyProfileChangedEvent;
 import org.datpham.foodlink.exception.BusinessException;
 import org.datpham.foodlink.repository.FamilyMemberRepository;
 import org.datpham.foodlink.repository.HealthConditionRepository;
@@ -15,6 +17,7 @@ import org.datpham.foodlink.repository.IngredientRepository;
 import org.datpham.foodlink.repository.MemberAllergyRepository;
 import org.datpham.foodlink.repository.UserRepository;
 import org.datpham.foodlink.service.FamilyMemberService;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -26,6 +29,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class FamilyMemberServiceImpl implements FamilyMemberService {
 
@@ -34,6 +38,7 @@ public class FamilyMemberServiceImpl implements FamilyMemberService {
     private final IngredientRepository ingredientRepository;
     private final MemberAllergyRepository memberAllergyRepository;
     private final UserRepository userRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -73,7 +78,9 @@ public class FamilyMemberServiceImpl implements FamilyMemberService {
         // Handle allergies after member is saved (so we have an ID)
         updateMemberAllergies(member, request);
         
-        return toResponse(familyMemberRepository.save(member));
+        FamilyMember savedMember = familyMemberRepository.save(member);
+        triggerRecommendationEvaluation(user.getId());
+        return toResponse(savedMember);
     }
 
     @Override
@@ -94,7 +101,9 @@ public class FamilyMemberServiceImpl implements FamilyMemberService {
 
         updateMemberFields(member, request);
         updateMemberAllergies(member, request);
-        return toResponse(familyMemberRepository.save(member));
+        FamilyMember savedMember = familyMemberRepository.save(member);
+        triggerRecommendationEvaluation(user.getId());
+        return toResponse(savedMember);
     }
 
     @Override
@@ -113,6 +122,7 @@ public class FamilyMemberServiceImpl implements FamilyMemberService {
         }
 
         familyMemberRepository.delete(member);
+        triggerRecommendationEvaluation(user.getId());
     }
 
     @Override
@@ -214,5 +224,10 @@ public class FamilyMemberServiceImpl implements FamilyMemberService {
                                 .build())
                         .collect(Collectors.toSet()))
                 .build();
+    }
+
+    private void triggerRecommendationEvaluation(String userId) {
+        eventPublisher.publishEvent(new FamilyProfileChangedEvent(userId));
+        log.info("Published family profile changed event for user {}", userId);
     }
 }

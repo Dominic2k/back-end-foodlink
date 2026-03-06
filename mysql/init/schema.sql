@@ -228,3 +228,27 @@ CREATE TABLE activity_logs (
                                performed_by VARCHAR(255) NOT NULL,
                                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- =========================
+-- DISH RECOMENDATION
+-- =========================
+CREATE TABLE dish_recommendations (
+    recommendation_id CHAR(36) NOT NULL,
+    user_id CHAR(36) NOT NULL,
+    recipe_id CHAR(36) NOT NULL,
+    score INT NOT NULL,
+    is_suitable BIT(1) NOT NULL,
+    reason TEXT NULL,
+    suggestion TEXT NULL,
+    created_at DATETIME(6) NULL,
+    updated_at DATETIME(6) NULL,
+
+    CONSTRAINT pk_dish_recommendations PRIMARY KEY (recommendation_id),
+    CONSTRAINT uk_recommend_user_recipe UNIQUE (user_id, recipe_id),
+
+    CONSTRAINT fk_dish_recommendations_user
+        FOREIGN KEY (user_id) REFERENCES users(user_id),
+
+    CONSTRAINT fk_dish_recommendations_recipe
+        FOREIGN KEY (recipe_id) REFERENCES recipes(recipe_id)
+);
