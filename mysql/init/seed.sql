@@ -70,6 +70,16 @@ VALUES
     ('d0e1f2a3-b4c5-6789-3456-890123456789', 'CEL', 'Celiac Disease');
 
 -- =========================
+-- DISH CATEGORIES
+-- =========================
+INSERT INTO dish_categories (category_id, name, description, is_active)
+VALUES
+    ('da100000-0000-0000-0000-000000000001', 'Breakfast', 'Morning dishes and light meals', 1),
+    ('da100000-0000-0000-0000-000000000002', 'Lunch', 'Main dishes for noon meals', 1),
+    ('da100000-0000-0000-0000-000000000003', 'Dinner', 'Evening dishes for family meals', 1),
+    ('da100000-0000-0000-0000-000000000004', 'Snack', 'Quick small portions between meals', 1);
+
+-- =========================
 -- MEMBER CONDITIONS
 -- =========================
 -- Test User has Hypertension

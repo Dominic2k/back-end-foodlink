@@ -52,6 +52,18 @@ CREATE TABLE health_conditions (
                                    name VARCHAR(255) NOT NULL UNIQUE
 );
 
+-- =========================
+-- DISH CATEGORIES
+-- =========================
+CREATE TABLE dish_categories (
+                                 category_id VARCHAR(36) PRIMARY KEY,
+                                 name VARCHAR(255) NOT NULL UNIQUE,
+                                 description TEXT,
+                                 is_active BOOLEAN DEFAULT TRUE,
+                                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
 
 -- =========================
 -- MEMBER CONDITIONS (M:N)
