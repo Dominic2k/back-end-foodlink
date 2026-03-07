@@ -10,6 +10,8 @@ import lombok.Getter;
 public class DishRecommendationResponse {
     private String recipeId;
     private String recipeName;
+    private String imageUrl;
+    private Boolean evaluated;
     private Integer score;
     private Boolean suitable;
     private String reason;
