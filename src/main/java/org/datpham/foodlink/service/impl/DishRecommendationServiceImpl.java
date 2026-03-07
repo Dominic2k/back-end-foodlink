@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.datpham.foodlink.dto.response.DishRecommendationResponse;
+import org.datpham.foodlink.dto.response.RecommendationPageResponse;
 import org.datpham.foodlink.entity.*;
 import org.datpham.foodlink.exception.BusinessException;
 import org.datpham.foodlink.repository.DishRecommendationRepository;
@@ -39,6 +40,48 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
     public List<DishRecommendationResponse> evaluateForCurrentUser() {
         User user = getCurrentUser();
         return evaluateForUserId(user.getId());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public RecommendationPageResponse getRecommendationsForCurrentUser(int page, int size) {
+        User user = getCurrentUser();
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), 50);
+
+        List<Recipe> publishedRecipes = recipeRepository.findByStatus(Recipe.RecipeStatus.published);
+        Map<String, DishRecommendation> recommendationMap = dishRecommendationRepository
+                .findAllByUser_IdOrderByScoreDesc(user.getId())
+                .stream()
+                .collect(Collectors.toMap(r -> r.getRecipe().getId(), r -> r, (left, right) -> left));
+
+        List<DishRecommendationResponse> merged = publishedRecipes.stream()
+                .map(recipe -> {
+                    DishRecommendation recommendation = recommendationMap.get(recipe.getId());
+                    return recommendation != null ? toResponse(recommendation) : toUnevaluatedResponse(recipe);
+                })
+                .sorted(
+                        Comparator.comparing((DishRecommendationResponse r) -> Boolean.TRUE.equals(r.getEvaluated())).reversed()
+                                .thenComparing(r -> r.getScore() == null ? 0 : r.getScore(), Comparator.reverseOrder())
+                                .thenComparing(DishRecommendationResponse::getRecipeName, String.CASE_INSENSITIVE_ORDER)
+                )
+                .toList();
+
+        int total = merged.size();
+        int fromIndex = Math.min(safePage * safeSize, total);
+        int toIndex = Math.min(fromIndex + safeSize, total);
+        List<DishRecommendationResponse> items = merged.subList(fromIndex, toIndex);
+        int totalPages = total == 0 ? 0 : (int) Math.ceil((double) total / safeSize);
+        boolean hasNext = toIndex < total;
+
+        return RecommendationPageResponse.builder()
+                .items(items)
+                .page(safePage)
+                .size(safeSize)
+                .totalItems(total)
+                .totalPages(totalPages)
+                .hasNext(hasNext)
+                .build();
     }
 
     @Override
@@ -244,10 +287,25 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
         return DishRecommendationResponse.builder()
                 .recipeId(recommendation.getRecipe().getId())
                 .recipeName(recommendation.getRecipe().getName())
+                .imageUrl(recommendation.getRecipe().getImageUrl())
+                .evaluated(true)
                 .score(recommendation.getScore())
                 .suitable(recommendation.getSuitable())
                 .reason(recommendation.getReason())
                 .suggestion(recommendation.getSuggestion())
+                .build();
+    }
+
+    private DishRecommendationResponse toUnevaluatedResponse(Recipe recipe) {
+        return DishRecommendationResponse.builder()
+                .recipeId(recipe.getId())
+                .recipeName(recipe.getName())
+                .imageUrl(recipe.getImageUrl())
+                .evaluated(false)
+                .score(0)
+                .suitable(false)
+                .reason(null)
+                .suggestion(null)
                 .build();
     }
 
