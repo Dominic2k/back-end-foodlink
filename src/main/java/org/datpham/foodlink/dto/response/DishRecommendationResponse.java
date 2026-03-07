@@ -11,6 +11,7 @@ public class DishRecommendationResponse {
     private String recipeId;
     private String recipeName;
     private String imageUrl;
+    private String category;
     private Boolean evaluated;
     private Integer score;
     private Boolean suitable;

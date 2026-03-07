@@ -70,3 +70,15 @@ Authorization: Bearer {{token}}
 ### Get recommendation list (paginated)
 GET http://localhost:8080/recommendations?page=0&size=8
 Authorization: Bearer {{token}}
+
+### Get recommendation list - suitable only
+GET http://localhost:8080/recommendations?page=0&size=8&evaluated=true&suitable=true
+Authorization: Bearer {{token}}
+
+### Get recommendation list - unevaluated only
+GET http://localhost:8080/recommendations?page=0&size=8&evaluated=false
+Authorization: Bearer {{token}}
+
+### Get recommendation list - by category
+GET http://localhost:8080/recommendations?page=0&size=8&category=meat
+Authorization: Bearer {{token}}

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.datpham.foodlink.dto.response.DishRecommendationResponse;
+import org.datpham.foodlink.dto.response.RecommendationFilterOptionsResponse;
 import org.datpham.foodlink.dto.response.RecommendationPageResponse;
 import org.datpham.foodlink.entity.*;
 import org.datpham.foodlink.exception.BusinessException;
@@ -44,10 +45,47 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
 
     @Override
     @Transactional(readOnly = true)
-    public RecommendationPageResponse getRecommendationsForCurrentUser(int page, int size) {
+    public RecommendationFilterOptionsResponse getFilterOptionsForCurrentUser() {
+        getCurrentUser();
+        List<String> ingredientCategories = recipeRepository.findByStatus(Recipe.RecipeStatus.published).stream()
+                .map(this::extractRecipeCategory)
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(String::toLowerCase)
+                .distinct()
+                .sorted()
+                .toList();
+
+        return RecommendationFilterOptionsResponse.builder()
+                .ingredientCategories(ingredientCategories)
+                .dishCategories(List.of())
+                .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public RecommendationPageResponse getRecommendationsForCurrentUser(
+            int page,
+            int size,
+            String suitable,
+            String evaluated,
+            Integer scoreMin,
+            Integer scoreMax,
+            String q,
+            String ingredientCategory,
+            String dishCategory
+    ) {
         User user = getCurrentUser();
         int safePage = Math.max(page, 0);
         int safeSize = Math.min(Math.max(size, 1), 50);
+        int minScore = scoreMin == null ? 0 : Math.max(0, Math.min(100, scoreMin));
+        int maxScore = scoreMax == null ? 100 : Math.max(0, Math.min(100, scoreMax));
+        String normalizedSuitable = suitable == null ? "all" : suitable.trim().toLowerCase();
+        String normalizedEvaluated = evaluated == null ? "all" : evaluated.trim().toLowerCase();
+        String keyword = q == null ? "" : q.trim().toLowerCase();
+        String normalizedIngredientCategory = ingredientCategory == null ? "" : ingredientCategory.trim().toLowerCase();
+        String normalizedDishCategory = dishCategory == null ? "" : dishCategory.trim().toLowerCase();
 
         List<Recipe> publishedRecipes = recipeRepository.findByStatus(Recipe.RecipeStatus.published);
         Map<String, DishRecommendation> recommendationMap = dishRecommendationRepository
@@ -60,6 +98,12 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
                     DishRecommendation recommendation = recommendationMap.get(recipe.getId());
                     return recommendation != null ? toResponse(recommendation) : toUnevaluatedResponse(recipe);
                 })
+                .filter(item -> matchEvaluatedFilter(item, normalizedEvaluated))
+                .filter(item -> matchSuitableFilter(item, normalizedSuitable))
+                .filter(item -> matchScoreRange(item, minScore, maxScore))
+                .filter(item -> matchKeyword(item, keyword))
+                .filter(item -> matchIngredientCategory(item, normalizedIngredientCategory))
+                .filter(item -> matchDishCategory(item, normalizedDishCategory))
                 .sorted(
                         Comparator.comparing((DishRecommendationResponse r) -> Boolean.TRUE.equals(r.getEvaluated())).reversed()
                                 .thenComparing(r -> r.getScore() == null ? 0 : r.getScore(), Comparator.reverseOrder())
@@ -288,6 +332,7 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
                 .recipeId(recommendation.getRecipe().getId())
                 .recipeName(recommendation.getRecipe().getName())
                 .imageUrl(recommendation.getRecipe().getImageUrl())
+                .category(extractRecipeCategory(recommendation.getRecipe()))
                 .evaluated(true)
                 .score(recommendation.getScore())
                 .suitable(recommendation.getSuitable())
@@ -301,6 +346,7 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
                 .recipeId(recipe.getId())
                 .recipeName(recipe.getName())
                 .imageUrl(recipe.getImageUrl())
+                .category(extractRecipeCategory(recipe))
                 .evaluated(false)
                 .score(0)
                 .suitable(false)
@@ -326,6 +372,83 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
             return normalized;
         }
         return normalized.substring(0, maxChars) + "...";
+    }
+
+    private boolean matchEvaluatedFilter(DishRecommendationResponse item, String evaluated) {
+        return switch (evaluated) {
+            case "evaluated", "true", "1" -> Boolean.TRUE.equals(item.getEvaluated());
+            case "unevaluated", "false", "0" -> !Boolean.TRUE.equals(item.getEvaluated());
+            default -> true;
+        };
+    }
+
+    private boolean matchSuitableFilter(DishRecommendationResponse item, String suitable) {
+        if (!Boolean.TRUE.equals(item.getEvaluated()) && ("suitable".equals(suitable) || "not_suitable".equals(suitable))) {
+            return false;
+        }
+        return switch (suitable) {
+            case "suitable", "true", "1" -> Boolean.TRUE.equals(item.getSuitable());
+            case "not_suitable", "unsuitable", "false", "0" -> !Boolean.TRUE.equals(item.getSuitable());
+            default -> true;
+        };
+    }
+
+    private boolean matchScoreRange(DishRecommendationResponse item, int minScore, int maxScore) {
+        if (!Boolean.TRUE.equals(item.getEvaluated())) {
+            return true;
+        }
+        int score = item.getScore() == null ? 0 : item.getScore();
+        return score >= Math.min(minScore, maxScore) && score <= Math.max(minScore, maxScore);
+    }
+
+    private boolean matchKeyword(DishRecommendationResponse item, String keyword) {
+        if (keyword.isEmpty()) {
+            return true;
+        }
+        String name = item.getRecipeName() == null ? "" : item.getRecipeName().toLowerCase();
+        return name.contains(keyword);
+    }
+
+    private boolean matchIngredientCategory(DishRecommendationResponse item, String ingredientCategory) {
+        if (ingredientCategory.isEmpty() || "all".equals(ingredientCategory)) {
+            return true;
+        }
+        String itemCategory = item.getCategory() == null ? "" : item.getCategory().toLowerCase();
+        return itemCategory.equals(ingredientCategory);
+    }
+
+    private boolean matchDishCategory(DishRecommendationResponse item, String dishCategory) {
+        if (dishCategory.isEmpty() || "all".equals(dishCategory)) {
+            return true;
+        }
+        // TODO: Replace with real recipe dish category matching when recipes.dish_category is introduced.
+        return true;
+    }
+
+    private String extractRecipeCategory(Recipe recipe) {
+        if (recipe.getRecipeIngredients() == null || recipe.getRecipeIngredients().isEmpty()) {
+            return "other";
+        }
+
+        Map<String, Long> categoryCount = recipe.getRecipeIngredients().stream()
+                .map(RecipeIngredient::getIngredient)
+                .filter(Objects::nonNull)
+                .map(Ingredient::getCategory)
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(String::toLowerCase)
+                .collect(Collectors.groupingBy(c -> c, Collectors.counting()));
+
+        if (categoryCount.isEmpty()) {
+            return "other";
+        }
+
+        return categoryCount.entrySet().stream()
+                .sorted(Map.Entry.<String, Long>comparingByValue().reversed().thenComparing(Map.Entry.comparingByKey()))
+                .map(Map.Entry::getKey)
+                .findFirst()
+                .orElse("other");
     }
 
     private record EvaluationResult(String recipeId, int score, boolean suitable, String reason, String suggestion) {
