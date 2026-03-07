@@ -5,6 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.datpham.foodlink.dto.response.DishRecommendationResponse;
+import org.datpham.foodlink.dto.response.RecommendationIngredientDetailResponse;
+import org.datpham.foodlink.dto.response.RecommendationFilterOptionsResponse;
+import org.datpham.foodlink.dto.response.RecommendationNutritionSummaryResponse;
 import org.datpham.foodlink.dto.response.RecommendationPageResponse;
 import org.datpham.foodlink.entity.*;
 import org.datpham.foodlink.exception.BusinessException;
@@ -20,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -44,10 +48,60 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
 
     @Override
     @Transactional(readOnly = true)
-    public RecommendationPageResponse getRecommendationsForCurrentUser(int page, int size) {
+    public RecommendationFilterOptionsResponse getFilterOptionsForCurrentUser() {
+        getCurrentUser();
+        List<String> ingredientCategories = recipeRepository.findByStatus(Recipe.RecipeStatus.published).stream()
+                .map(this::extractRecipeCategory)
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(String::toLowerCase)
+                .distinct()
+                .sorted()
+                .toList();
+
+        return RecommendationFilterOptionsResponse.builder()
+                .ingredientCategories(ingredientCategories)
+                .dishCategories(List.of())
+                .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public DishRecommendationResponse getRecommendationDetailForCurrentUser(String recipeId) {
+        User user = getCurrentUser();
+        Recipe recipe = recipeRepository.findById(recipeId)
+                .filter(r -> r.getStatus() == Recipe.RecipeStatus.published)
+                .orElseThrow(() -> new BusinessException("Recipe not found", HttpStatus.NOT_FOUND));
+
+        return dishRecommendationRepository.findByUser_IdAndRecipe_Id(user.getId(), recipeId)
+                .map(record -> toResponse(record, true))
+                .orElseGet(() -> toUnevaluatedResponse(recipe, true));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public RecommendationPageResponse getRecommendationsForCurrentUser(
+            int page,
+            int size,
+            String suitable,
+            String evaluated,
+            Integer scoreMin,
+            Integer scoreMax,
+            String q,
+            String ingredientCategory,
+            String dishCategory
+    ) {
         User user = getCurrentUser();
         int safePage = Math.max(page, 0);
         int safeSize = Math.min(Math.max(size, 1), 50);
+        int minScore = scoreMin == null ? 0 : Math.max(0, Math.min(100, scoreMin));
+        int maxScore = scoreMax == null ? 100 : Math.max(0, Math.min(100, scoreMax));
+        String normalizedSuitable = suitable == null ? "all" : suitable.trim().toLowerCase();
+        String normalizedEvaluated = evaluated == null ? "all" : evaluated.trim().toLowerCase();
+        String keyword = q == null ? "" : q.trim().toLowerCase();
+        String normalizedIngredientCategory = ingredientCategory == null ? "" : ingredientCategory.trim().toLowerCase();
+        String normalizedDishCategory = dishCategory == null ? "" : dishCategory.trim().toLowerCase();
 
         List<Recipe> publishedRecipes = recipeRepository.findByStatus(Recipe.RecipeStatus.published);
         Map<String, DishRecommendation> recommendationMap = dishRecommendationRepository
@@ -58,8 +112,14 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
         List<DishRecommendationResponse> merged = publishedRecipes.stream()
                 .map(recipe -> {
                     DishRecommendation recommendation = recommendationMap.get(recipe.getId());
-                    return recommendation != null ? toResponse(recommendation) : toUnevaluatedResponse(recipe);
+                    return recommendation != null ? toResponse(recommendation, false) : toUnevaluatedResponse(recipe, false);
                 })
+                .filter(item -> matchEvaluatedFilter(item, normalizedEvaluated))
+                .filter(item -> matchSuitableFilter(item, normalizedSuitable))
+                .filter(item -> matchScoreRange(item, minScore, maxScore))
+                .filter(item -> matchKeyword(item, keyword))
+                .filter(item -> matchIngredientCategory(item, normalizedIngredientCategory))
+                .filter(item -> matchDishCategory(item, normalizedDishCategory))
                 .sorted(
                         Comparator.comparing((DishRecommendationResponse r) -> Boolean.TRUE.equals(r.getEvaluated())).reversed()
                                 .thenComparing(r -> r.getScore() == null ? 0 : r.getScore(), Comparator.reverseOrder())
@@ -147,7 +207,7 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
 
         List<DishRecommendationResponse> response = saved.stream()
                 .sorted(Comparator.comparing(DishRecommendation::getScore).reversed())
-                .map(this::toResponse)
+                .map(record -> toResponse(record, false))
                 .toList();
 
         log.info("Recommendation evaluation completed for user {} in {} ms",
@@ -283,30 +343,164 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
         return content.substring(start, end + 1);
     }
 
-    private DishRecommendationResponse toResponse(DishRecommendation recommendation) {
+    private DishRecommendationResponse toResponse(DishRecommendation recommendation, boolean includeDetails) {
+        List<RecommendationIngredientDetailResponse> ingredients = includeDetails
+                ? buildIngredientDetails(recommendation.getRecipe())
+                : null;
+        RecommendationNutritionSummaryResponse nutritionSummary = includeDetails
+                ? buildNutritionSummary(ingredients)
+                : null;
+
         return DishRecommendationResponse.builder()
                 .recipeId(recommendation.getRecipe().getId())
                 .recipeName(recommendation.getRecipe().getName())
                 .imageUrl(recommendation.getRecipe().getImageUrl())
+                .recipeDescription(recommendation.getRecipe().getDescription())
+                .recipeInstructions(recommendation.getRecipe().getInstructions())
+                .prepTimeMin(recommendation.getRecipe().getPrepTimeMin())
+                .cookTimeMin(recommendation.getRecipe().getCookTimeMin())
+                .baseServings(recommendation.getRecipe().getBaseServings())
+                .category(extractRecipeCategory(recommendation.getRecipe()))
                 .evaluated(true)
                 .score(recommendation.getScore())
                 .suitable(recommendation.getSuitable())
                 .reason(recommendation.getReason())
                 .suggestion(recommendation.getSuggestion())
+                .ingredients(ingredients)
+                .nutritionSummary(nutritionSummary)
                 .build();
     }
 
-    private DishRecommendationResponse toUnevaluatedResponse(Recipe recipe) {
+    private DishRecommendationResponse toUnevaluatedResponse(Recipe recipe, boolean includeDetails) {
+        List<RecommendationIngredientDetailResponse> ingredients = includeDetails
+                ? buildIngredientDetails(recipe)
+                : null;
+        RecommendationNutritionSummaryResponse nutritionSummary = includeDetails
+                ? buildNutritionSummary(ingredients)
+                : null;
+
         return DishRecommendationResponse.builder()
                 .recipeId(recipe.getId())
                 .recipeName(recipe.getName())
                 .imageUrl(recipe.getImageUrl())
+                .recipeDescription(recipe.getDescription())
+                .recipeInstructions(recipe.getInstructions())
+                .prepTimeMin(recipe.getPrepTimeMin())
+                .cookTimeMin(recipe.getCookTimeMin())
+                .baseServings(recipe.getBaseServings())
+                .category(extractRecipeCategory(recipe))
                 .evaluated(false)
                 .score(0)
                 .suitable(false)
                 .reason(null)
                 .suggestion(null)
+                .ingredients(ingredients)
+                .nutritionSummary(nutritionSummary)
                 .build();
+    }
+
+    private List<RecommendationIngredientDetailResponse> buildIngredientDetails(Recipe recipe) {
+        if (recipe.getRecipeIngredients() == null || recipe.getRecipeIngredients().isEmpty()) {
+            return List.of();
+        }
+
+        return recipe.getRecipeIngredients().stream()
+                .map(ri -> {
+                    Ingredient ingredient = ri.getIngredient();
+                    IngredientNutrition nutrition = ingredient != null ? ingredient.getNutrition() : null;
+                    BigDecimal quantityInBaseUnit = convertToBaseQuantity(ri.getQuantity(), ri.getUnit());
+                    BigDecimal factor = quantityInBaseUnit == null
+                            ? null
+                            : quantityInBaseUnit.divide(new BigDecimal("100"), 6, RoundingMode.HALF_UP);
+
+                    return RecommendationIngredientDetailResponse.builder()
+                            .ingredientId(ingredient != null ? ingredient.getId() : null)
+                            .ingredientName(ingredient != null ? ingredient.getName() : "unknown")
+                            .category(ingredient != null ? ingredient.getCategory() : null)
+                            .quantity(ri.getQuantity())
+                            .unit(ri.getUnit())
+                            .optional(Boolean.TRUE.equals(ri.getIsOptional()))
+                            .calories(multiplyNutrition(nutrition == null ? null : nutrition.getCaloriesPer100(), factor))
+                            .protein(multiplyNutrition(nutrition == null ? null : nutrition.getProteinGPer100(), factor))
+                            .carb(multiplyNutrition(nutrition == null ? null : nutrition.getCarbGPer100(), factor))
+                            .fat(multiplyNutrition(nutrition == null ? null : nutrition.getFatGPer100(), factor))
+                            .build();
+                })
+                .toList();
+    }
+
+    private RecommendationNutritionSummaryResponse buildNutritionSummary(List<RecommendationIngredientDetailResponse> ingredients) {
+        if (ingredients == null || ingredients.isEmpty()) {
+            return RecommendationNutritionSummaryResponse.builder()
+                    .calories(BigDecimal.ZERO)
+                    .protein(BigDecimal.ZERO)
+                    .carb(BigDecimal.ZERO)
+                    .fat(BigDecimal.ZERO)
+                    .coveredIngredients(0)
+                    .totalIngredients(0)
+                    .build();
+        }
+
+        BigDecimal calories = BigDecimal.ZERO;
+        BigDecimal protein = BigDecimal.ZERO;
+        BigDecimal carb = BigDecimal.ZERO;
+        BigDecimal fat = BigDecimal.ZERO;
+        int covered = 0;
+
+        for (RecommendationIngredientDetailResponse item : ingredients) {
+            if (item.getCalories() != null || item.getProtein() != null || item.getCarb() != null || item.getFat() != null) {
+                covered++;
+            }
+
+            calories = calories.add(zeroIfNull(item.getCalories()));
+            protein = protein.add(zeroIfNull(item.getProtein()));
+            carb = carb.add(zeroIfNull(item.getCarb()));
+            fat = fat.add(zeroIfNull(item.getFat()));
+        }
+
+        return RecommendationNutritionSummaryResponse.builder()
+                .calories(scale2(calories))
+                .protein(scale2(protein))
+                .carb(scale2(carb))
+                .fat(scale2(fat))
+                .coveredIngredients(covered)
+                .totalIngredients(ingredients.size())
+                .build();
+    }
+
+    private BigDecimal convertToBaseQuantity(BigDecimal quantity, String unit) {
+        if (quantity == null || unit == null) {
+            return null;
+        }
+
+        String normalizedUnit = unit.trim().toLowerCase(Locale.ROOT);
+        if (normalizedUnit.isEmpty()) {
+            return null;
+        }
+
+        return switch (normalizedUnit) {
+            case "g", "gram", "grams" -> quantity;
+            case "kg", "kilogram", "kilograms" -> quantity.multiply(new BigDecimal("1000"));
+            case "mg", "milligram", "milligrams" -> quantity.divide(new BigDecimal("1000"), 6, RoundingMode.HALF_UP);
+            case "ml", "milliliter", "milliliters" -> quantity;
+            case "l", "liter", "liters" -> quantity.multiply(new BigDecimal("1000"));
+            default -> null;
+        };
+    }
+
+    private BigDecimal multiplyNutrition(BigDecimal valuePer100, BigDecimal factor) {
+        if (valuePer100 == null || factor == null) {
+            return null;
+        }
+        return scale2(valuePer100.multiply(factor));
+    }
+
+    private BigDecimal zeroIfNull(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
+    }
+
+    private BigDecimal scale2(BigDecimal value) {
+        return value.setScale(2, RoundingMode.HALF_UP);
     }
 
     private String nullSafe(String value) {
@@ -326,6 +520,83 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
             return normalized;
         }
         return normalized.substring(0, maxChars) + "...";
+    }
+
+    private boolean matchEvaluatedFilter(DishRecommendationResponse item, String evaluated) {
+        return switch (evaluated) {
+            case "evaluated", "true", "1" -> Boolean.TRUE.equals(item.getEvaluated());
+            case "unevaluated", "false", "0" -> !Boolean.TRUE.equals(item.getEvaluated());
+            default -> true;
+        };
+    }
+
+    private boolean matchSuitableFilter(DishRecommendationResponse item, String suitable) {
+        if (!Boolean.TRUE.equals(item.getEvaluated()) && ("suitable".equals(suitable) || "not_suitable".equals(suitable))) {
+            return false;
+        }
+        return switch (suitable) {
+            case "suitable", "true", "1" -> Boolean.TRUE.equals(item.getSuitable());
+            case "not_suitable", "unsuitable", "false", "0" -> !Boolean.TRUE.equals(item.getSuitable());
+            default -> true;
+        };
+    }
+
+    private boolean matchScoreRange(DishRecommendationResponse item, int minScore, int maxScore) {
+        if (!Boolean.TRUE.equals(item.getEvaluated())) {
+            return true;
+        }
+        int score = item.getScore() == null ? 0 : item.getScore();
+        return score >= Math.min(minScore, maxScore) && score <= Math.max(minScore, maxScore);
+    }
+
+    private boolean matchKeyword(DishRecommendationResponse item, String keyword) {
+        if (keyword.isEmpty()) {
+            return true;
+        }
+        String name = item.getRecipeName() == null ? "" : item.getRecipeName().toLowerCase();
+        return name.contains(keyword);
+    }
+
+    private boolean matchIngredientCategory(DishRecommendationResponse item, String ingredientCategory) {
+        if (ingredientCategory.isEmpty() || "all".equals(ingredientCategory)) {
+            return true;
+        }
+        String itemCategory = item.getCategory() == null ? "" : item.getCategory().toLowerCase();
+        return itemCategory.equals(ingredientCategory);
+    }
+
+    private boolean matchDishCategory(DishRecommendationResponse item, String dishCategory) {
+        if (dishCategory.isEmpty() || "all".equals(dishCategory)) {
+            return true;
+        }
+        // TODO: Replace with real recipe dish category matching when recipes.dish_category is introduced.
+        return true;
+    }
+
+    private String extractRecipeCategory(Recipe recipe) {
+        if (recipe.getRecipeIngredients() == null || recipe.getRecipeIngredients().isEmpty()) {
+            return "other";
+        }
+
+        Map<String, Long> categoryCount = recipe.getRecipeIngredients().stream()
+                .map(RecipeIngredient::getIngredient)
+                .filter(Objects::nonNull)
+                .map(Ingredient::getCategory)
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(String::toLowerCase)
+                .collect(Collectors.groupingBy(c -> c, Collectors.counting()));
+
+        if (categoryCount.isEmpty()) {
+            return "other";
+        }
+
+        return categoryCount.entrySet().stream()
+                .sorted(Map.Entry.<String, Long>comparingByValue().reversed().thenComparing(Map.Entry.comparingByKey()))
+                .map(Map.Entry::getKey)
+                .findFirst()
+                .orElse("other");
     }
 
     private record EvaluationResult(String recipeId, int score, boolean suitable, String reason, String suggestion) {
