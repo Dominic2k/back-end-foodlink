@@ -121,3 +121,93 @@ VALUES (
     '66666666-6666-6666-6666-666666666666',
     'severe'
 );
+
+-- =========================
+-- RECIPES (PUBLISHED FOR AI RECOMMENDATION)
+-- =========================
+INSERT INTO recipes (
+    recipe_id, name, description, instructions, prep_time_min, cook_time_min, base_servings, created_by, status
+)
+VALUES
+    (
+        '88888888-8888-8888-8888-888888888888',
+        'Boiled Chicken Broccoli Bowl',
+        'Lean chicken with broccoli, low oil and balanced protein.',
+        '1) Boil chicken breast and slice. 2) Steam broccoli. 3) Serve with a small rice portion.',
+        10,
+        20,
+        1,
+        'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+        'published'
+    ),
+    (
+        '99999999-9999-9999-9999-999999999999',
+        'Peanut Fried Rice',
+        'High-energy fried rice with crushed peanuts.',
+        '1) Cook rice. 2) Stir-fry with egg. 3) Add crushed peanuts and serve.',
+        10,
+        15,
+        1,
+        'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+        'published'
+    ),
+    (
+        'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        'Milk Egg Scramble',
+        'Soft scrambled eggs cooked with a little milk.',
+        '1) Beat eggs with milk. 2) Cook on low heat until creamy.',
+        5,
+        8,
+        1,
+        'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+        'published'
+    ),
+    (
+        'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+        'Steamed Broccoli Egg Bowl',
+        'Simple steamed broccoli with boiled egg, suitable for light meals.',
+        '1) Steam broccoli. 2) Boil egg. 3) Slice egg and serve together.',
+        8,
+        10,
+        1,
+        'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+        'published'
+    ),
+    (
+        'cccccccc-cccc-cccc-cccc-cccccccccccc',
+        'Chicken Rice Plate',
+        'Balanced chicken and rice plate for everyday meal.',
+        '1) Pan-sear chicken breast with little oil. 2) Steam rice. 3) Serve hot.',
+        12,
+        18,
+        1,
+        'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+        'published'
+    );
+
+-- =========================
+-- RECIPE INGREDIENTS
+-- =========================
+INSERT INTO recipe_ingredients (recipe_id, ingredient_id, quantity, unit, is_optional)
+VALUES
+    -- Boiled Chicken Broccoli Bowl
+    ('88888888-8888-8888-8888-888888888888', '11111111-1111-1111-1111-111111111111', 150, 'g', 0),
+    ('88888888-8888-8888-8888-888888888888', '55555555-5555-5555-5555-555555555555', 120, 'g', 0),
+    ('88888888-8888-8888-8888-888888888888', '44444444-4444-4444-4444-444444444444', 80, 'g', 1),
+
+    -- Peanut Fried Rice
+    ('99999999-9999-9999-9999-999999999999', '44444444-4444-4444-4444-444444444444', 180, 'g', 0),
+    ('99999999-9999-9999-9999-999999999999', '22222222-2222-2222-2222-222222222222', 1, 'piece', 0),
+    ('99999999-9999-9999-9999-999999999999', '66666666-6666-6666-6666-666666666666', 30, 'g', 0),
+
+    -- Milk Egg Scramble
+    ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '22222222-2222-2222-2222-222222222222', 2, 'piece', 0),
+    ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '33333333-3333-3333-3333-333333333333', 80, 'ml', 0),
+
+    -- Steamed Broccoli Egg Bowl
+    ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', '55555555-5555-5555-5555-555555555555', 150, 'g', 0),
+    ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', '22222222-2222-2222-2222-222222222222', 1, 'piece', 0),
+
+    -- Chicken Rice Plate
+    ('cccccccc-cccc-cccc-cccc-cccccccccccc', '11111111-1111-1111-1111-111111111111', 140, 'g', 0),
+    ('cccccccc-cccc-cccc-cccc-cccccccccccc', '44444444-4444-4444-4444-444444444444', 160, 'g', 0);
