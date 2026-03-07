@@ -6,8 +6,15 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+import java.util.Optional;
+
 @Repository
 public interface IngredientRepository extends JpaRepository<Ingredient, String> {
     Page<Ingredient> findByNameContainingIgnoreCaseOrCategoryContainingIgnoreCase(
             String name, String category, Pageable pageable);
+
+    Optional<Ingredient> findByNameIgnoreCase(String name);
+
+    List<Ingredient> findAllByIsActiveTrue();
 }

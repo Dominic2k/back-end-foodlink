@@ -67,6 +67,19 @@ public class RecipeServiceImpl implements RecipeService {
     @Override
     @Transactional
     public RecipeResponse createRecipe(RecipeRequest request) {
+        // Resolve all ingredient IDs first (may create new ingredients)
+        List<ResolvedIngredient> resolvedIngredients = new ArrayList<>();
+        if (request.getIngredients() != null && !request.getIngredients().isEmpty()) {
+            for (RecipeRequest.RecipeIngredientItem item : request.getIngredients()) {
+                resolvedIngredients.add(new ResolvedIngredient(
+                        resolveIngredientId(item),
+                        item.getQuantity(),
+                        item.getUnit(),
+                        item.getIsOptional() != null ? item.getIsOptional() : false
+                ));
+            }
+        }
+
         Recipe recipe = new Recipe();
         recipe.setName(request.getName());
         recipe.setDescription(request.getDescription());
@@ -87,19 +100,18 @@ public class RecipeServiceImpl implements RecipeService {
         // Save first to get ID
         Recipe savedRecipe = recipeRepository.save(recipe);
 
-        // Add ingredients
-        if (request.getIngredients() != null && !request.getIngredients().isEmpty()) {
-            List<RecipeIngredient> riList = new ArrayList<>();
-            for (RecipeRequest.RecipeIngredientItem item : request.getIngredients()) {
-                RecipeIngredient ri = new RecipeIngredient();
-                ri.setRecipeId(savedRecipe.getId());
-                ri.setIngredientId(item.getIngredientId());
-                ri.setQuantity(item.getQuantity());
-                ri.setUnit(item.getUnit());
-                ri.setIsOptional(item.getIsOptional() != null ? item.getIsOptional() : false);
-                riList.add(ri);
-            }
-            savedRecipe.setRecipeIngredients(riList);
+        // Add ingredients to the managed list
+        for (ResolvedIngredient ri : resolvedIngredients) {
+            RecipeIngredient recipeIngredient = new RecipeIngredient();
+            recipeIngredient.setRecipeId(savedRecipe.getId());
+            recipeIngredient.setIngredientId(ri.ingredientId);
+            recipeIngredient.setQuantity(ri.quantity);
+            recipeIngredient.setUnit(ri.unit);
+            recipeIngredient.setIsOptional(ri.isOptional);
+            savedRecipe.getRecipeIngredients().add(recipeIngredient);
+        }
+
+        if (!resolvedIngredients.isEmpty()) {
             savedRecipe = recipeRepository.save(savedRecipe);
         }
 
@@ -133,7 +145,7 @@ public class RecipeServiceImpl implements RecipeService {
             for (RecipeRequest.RecipeIngredientItem item : request.getIngredients()) {
                 RecipeIngredient ri = new RecipeIngredient();
                 ri.setRecipeId(recipe.getId());
-                ri.setIngredientId(item.getIngredientId());
+                ri.setIngredientId(resolveIngredientId(item));
                 ri.setQuantity(item.getQuantity());
                 ri.setUnit(item.getUnit());
                 ri.setIsOptional(item.getIsOptional() != null ? item.getIsOptional() : false);
@@ -218,4 +230,33 @@ public class RecipeServiceImpl implements RecipeService {
             return null;
         }
     }
+
+    /**
+     * Resolves an ingredient ID from the request item.
+     * If ingredientId is provided, validates it exists.
+     * If only ingredientName is provided, finds by name or creates a new ingredient.
+     */
+    private String resolveIngredientId(RecipeRequest.RecipeIngredientItem item) {
+        if (item.getIngredientId() != null && !item.getIngredientId().isBlank()) {
+            ingredientRepository.findById(item.getIngredientId())
+                    .orElseThrow(() -> new BusinessException(
+                            "Ingredient not found: " + item.getIngredientId(), HttpStatus.NOT_FOUND));
+            return item.getIngredientId();
+        }
+        if (item.getIngredientName() != null && !item.getIngredientName().isBlank()) {
+            return ingredientRepository.findByNameIgnoreCase(item.getIngredientName().trim())
+                    .map(Ingredient::getId)
+                    .orElseGet(() -> {
+                        Ingredient newIng = new Ingredient();
+                        newIng.setName(item.getIngredientName().trim());
+                        return ingredientRepository.save(newIng).getId();
+                    });
+        }
+        throw new BusinessException("ingredientId or ingredientName is required", HttpStatus.BAD_REQUEST);
+    }
+
+    /**
+     * Simple holder for pre-resolved ingredient data.
+     */
+    private record ResolvedIngredient(String ingredientId, java.math.BigDecimal quantity, String unit, boolean isOptional) {}
 }

@@ -240,7 +240,17 @@ CREATE TABLE activity_logs (
                                performed_by VARCHAR(255) NOT NULL,
                                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+-- =========================
+-- APP VISITS
+-- =========================
+CREATE TABLE app_visits (
+                            visit_id VARCHAR(36) PRIMARY KEY,
+                            user_id VARCHAR(36),
+                            visited_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
+                            CONSTRAINT fk_visit_user
+                                FOREIGN KEY (user_id) REFERENCES users(user_id)
+                                    ON DELETE SET NULL
 -- =========================
 -- DISH RECOMENDATION
 -- =========================

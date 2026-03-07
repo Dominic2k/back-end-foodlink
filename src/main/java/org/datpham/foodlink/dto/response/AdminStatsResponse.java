@@ -22,7 +22,10 @@ public class AdminStatsResponse {
     private long totalOrders;
     private long pendingOrders;
     private long todayActivities;
+    private long totalAppVisits;
+    private long todayAppVisits;
     private List<DailyActivityCount> dailyActivities;
+    private List<DailyActivityCount> dailyAppVisits;
 
     @Getter
     @Builder

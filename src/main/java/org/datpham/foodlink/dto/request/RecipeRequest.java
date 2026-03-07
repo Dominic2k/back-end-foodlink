@@ -28,6 +28,7 @@ public class RecipeRequest {
     @Setter
     public static class RecipeIngredientItem {
         private String ingredientId;
+        private String ingredientName; // used when adding a new ingredient not yet in DB
         private BigDecimal quantity;
         private String unit;
         private Boolean isOptional;

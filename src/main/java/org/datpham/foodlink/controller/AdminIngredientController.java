@@ -40,6 +40,12 @@ public class AdminIngredientController {
                 new BaseResponse<>(ingredientService.getAllIngredients(search, pageable), "Success", 200));
     }
 
+    @GetMapping("/all")
+    public ResponseEntity<BaseResponse<java.util.List<IngredientResponse>>> getAllActive() {
+        return ResponseEntity.ok(
+                new BaseResponse<>(ingredientService.getAllActiveIngredients(), "Success", 200));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<BaseResponse<IngredientResponse>> getById(@PathVariable String id) {
         return ResponseEntity.ok(
