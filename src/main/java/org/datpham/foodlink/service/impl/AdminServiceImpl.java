@@ -41,6 +41,7 @@ public class AdminServiceImpl implements AdminService {
     private final IngredientRepository ingredientRepository;
     private final RecipeRepository recipeRepository;
     private final OrderRepository orderRepository;
+    private final AppVisitRepository appVisitRepository;
     private final ActivityLogService activityLogService;
 
     @Override
@@ -101,6 +102,12 @@ public class AdminServiceImpl implements AdminService {
         long todayActivities = activityLogService.countTodayActivities();
         List<AdminStatsResponse.DailyActivityCount> dailyActivities = buildDailyActivities();
 
+        // App visit stats
+        LocalDateTime startOfToday = LocalDate.now().atStartOfDay();
+        long totalAppVisits = appVisitRepository.count();
+        long todayAppVisits = appVisitRepository.countByVisitedAtAfter(startOfToday);
+        List<AdminStatsResponse.DailyActivityCount> dailyAppVisits = buildDailyVisits();
+
         return AdminStatsResponse.builder()
                 .totalUsers(totalUsers)
                 .activeUsers(activeUsers)
@@ -114,7 +121,10 @@ public class AdminServiceImpl implements AdminService {
                 .totalOrders(totalOrders)
                 .pendingOrders(pendingOrders)
                 .todayActivities(todayActivities)
+                .totalAppVisits(totalAppVisits)
+                .todayAppVisits(todayAppVisits)
                 .dailyActivities(dailyActivities)
+                .dailyAppVisits(dailyAppVisits)
                 .build();
     }
 
@@ -127,6 +137,34 @@ public class AdminServiceImpl implements AdminService {
         }
         // Fill actual data
         List<Object[]> raw = activityLogService.getDailyActivityCounts(7);
+        for (Object[] row : raw) {
+            String dateStr;
+            if (row[0] instanceof java.sql.Date) {
+                dateStr = ((java.sql.Date) row[0]).toLocalDate().format(fmt);
+            } else {
+                dateStr = LocalDate.parse(row[0].toString()).format(fmt);
+            }
+            long count = ((Number) row[1]).longValue();
+            dayMap.put(dateStr, count);
+        }
+        List<AdminStatsResponse.DailyActivityCount> result = new ArrayList<>();
+        for (Map.Entry<String, Long> entry : dayMap.entrySet()) {
+            result.add(AdminStatsResponse.DailyActivityCount.builder()
+                    .date(entry.getKey())
+                    .count(entry.getValue())
+                    .build());
+        }
+        return result;
+    }
+
+    private List<AdminStatsResponse.DailyActivityCount> buildDailyVisits() {
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("MM/dd");
+        Map<String, Long> dayMap = new LinkedHashMap<>();
+        for (int i = 6; i >= 0; i--) {
+            dayMap.put(LocalDate.now().minusDays(i).format(fmt), 0L);
+        }
+        LocalDateTime since = LocalDate.now().minusDays(6).atStartOfDay();
+        List<Object[]> raw = appVisitRepository.getDailyVisitCounts(since);
         for (Object[] row : raw) {
             String dateStr;
             if (row[0] instanceof java.sql.Date) {

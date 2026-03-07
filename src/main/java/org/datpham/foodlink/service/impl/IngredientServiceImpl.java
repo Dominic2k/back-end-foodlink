@@ -14,6 +14,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class IngredientServiceImpl implements IngredientService {
@@ -30,6 +32,13 @@ public class IngredientServiceImpl implements IngredientService {
             ingredients = ingredientRepository.findAll(pageable);
         }
         return ingredients.map(this::toResponse);
+    }
+
+    @Override
+    public List<IngredientResponse> getAllActiveIngredients() {
+        return ingredientRepository.findAllByIsActiveTrue().stream()
+                .map(this::toResponse)
+                .toList();
     }
 
     @Override
