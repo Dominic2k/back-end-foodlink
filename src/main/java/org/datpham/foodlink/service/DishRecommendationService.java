@@ -10,6 +10,7 @@ public interface DishRecommendationService {
     List<DishRecommendationResponse> evaluateForCurrentUser();
     List<DishRecommendationResponse> evaluateForUserId(String userId);
     RecommendationFilterOptionsResponse getFilterOptionsForCurrentUser();
+    DishRecommendationResponse getRecommendationDetailForCurrentUser(String recipeId);
     RecommendationPageResponse getRecommendationsForCurrentUser(
             int page,
             int size,

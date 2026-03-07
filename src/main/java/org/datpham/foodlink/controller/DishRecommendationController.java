@@ -8,6 +8,7 @@ import org.datpham.foodlink.dto.response.RecommendationPageResponse;
 import org.datpham.foodlink.service.DishRecommendationService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,6 +27,19 @@ public class DishRecommendationController {
     public ResponseEntity<BaseResponse<RecommendationFilterOptionsResponse>> getFilterOptions() {
         return ResponseEntity.ok(
                 new BaseResponse<>(dishRecommendationService.getFilterOptionsForCurrentUser(), "Success", 200)
+        );
+    }
+
+    @GetMapping("/{recipeId}")
+    public ResponseEntity<BaseResponse<DishRecommendationResponse>> getRecommendationDetail(
+            @PathVariable String recipeId
+    ) {
+        return ResponseEntity.ok(
+                new BaseResponse<>(
+                        dishRecommendationService.getRecommendationDetailForCurrentUser(recipeId),
+                        "Success",
+                        200
+                )
         );
     }
 

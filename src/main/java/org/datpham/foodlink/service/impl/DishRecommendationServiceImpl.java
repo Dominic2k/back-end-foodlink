@@ -5,7 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.datpham.foodlink.dto.response.DishRecommendationResponse;
+import org.datpham.foodlink.dto.response.RecommendationIngredientDetailResponse;
 import org.datpham.foodlink.dto.response.RecommendationFilterOptionsResponse;
+import org.datpham.foodlink.dto.response.RecommendationNutritionSummaryResponse;
 import org.datpham.foodlink.dto.response.RecommendationPageResponse;
 import org.datpham.foodlink.entity.*;
 import org.datpham.foodlink.exception.BusinessException;
@@ -21,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -65,6 +68,19 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
 
     @Override
     @Transactional(readOnly = true)
+    public DishRecommendationResponse getRecommendationDetailForCurrentUser(String recipeId) {
+        User user = getCurrentUser();
+        Recipe recipe = recipeRepository.findById(recipeId)
+                .filter(r -> r.getStatus() == Recipe.RecipeStatus.published)
+                .orElseThrow(() -> new BusinessException("Recipe not found", HttpStatus.NOT_FOUND));
+
+        return dishRecommendationRepository.findByUser_IdAndRecipe_Id(user.getId(), recipeId)
+                .map(record -> toResponse(record, true))
+                .orElseGet(() -> toUnevaluatedResponse(recipe, true));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public RecommendationPageResponse getRecommendationsForCurrentUser(
             int page,
             int size,
@@ -96,7 +112,7 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
         List<DishRecommendationResponse> merged = publishedRecipes.stream()
                 .map(recipe -> {
                     DishRecommendation recommendation = recommendationMap.get(recipe.getId());
-                    return recommendation != null ? toResponse(recommendation) : toUnevaluatedResponse(recipe);
+                    return recommendation != null ? toResponse(recommendation, false) : toUnevaluatedResponse(recipe, false);
                 })
                 .filter(item -> matchEvaluatedFilter(item, normalizedEvaluated))
                 .filter(item -> matchSuitableFilter(item, normalizedSuitable))
@@ -191,7 +207,7 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
 
         List<DishRecommendationResponse> response = saved.stream()
                 .sorted(Comparator.comparing(DishRecommendation::getScore).reversed())
-                .map(this::toResponse)
+                .map(record -> toResponse(record, false))
                 .toList();
 
         log.info("Recommendation evaluation completed for user {} in {} ms",
@@ -327,32 +343,164 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
         return content.substring(start, end + 1);
     }
 
-    private DishRecommendationResponse toResponse(DishRecommendation recommendation) {
+    private DishRecommendationResponse toResponse(DishRecommendation recommendation, boolean includeDetails) {
+        List<RecommendationIngredientDetailResponse> ingredients = includeDetails
+                ? buildIngredientDetails(recommendation.getRecipe())
+                : null;
+        RecommendationNutritionSummaryResponse nutritionSummary = includeDetails
+                ? buildNutritionSummary(ingredients)
+                : null;
+
         return DishRecommendationResponse.builder()
                 .recipeId(recommendation.getRecipe().getId())
                 .recipeName(recommendation.getRecipe().getName())
                 .imageUrl(recommendation.getRecipe().getImageUrl())
+                .recipeDescription(recommendation.getRecipe().getDescription())
+                .recipeInstructions(recommendation.getRecipe().getInstructions())
+                .prepTimeMin(recommendation.getRecipe().getPrepTimeMin())
+                .cookTimeMin(recommendation.getRecipe().getCookTimeMin())
+                .baseServings(recommendation.getRecipe().getBaseServings())
                 .category(extractRecipeCategory(recommendation.getRecipe()))
                 .evaluated(true)
                 .score(recommendation.getScore())
                 .suitable(recommendation.getSuitable())
                 .reason(recommendation.getReason())
                 .suggestion(recommendation.getSuggestion())
+                .ingredients(ingredients)
+                .nutritionSummary(nutritionSummary)
                 .build();
     }
 
-    private DishRecommendationResponse toUnevaluatedResponse(Recipe recipe) {
+    private DishRecommendationResponse toUnevaluatedResponse(Recipe recipe, boolean includeDetails) {
+        List<RecommendationIngredientDetailResponse> ingredients = includeDetails
+                ? buildIngredientDetails(recipe)
+                : null;
+        RecommendationNutritionSummaryResponse nutritionSummary = includeDetails
+                ? buildNutritionSummary(ingredients)
+                : null;
+
         return DishRecommendationResponse.builder()
                 .recipeId(recipe.getId())
                 .recipeName(recipe.getName())
                 .imageUrl(recipe.getImageUrl())
+                .recipeDescription(recipe.getDescription())
+                .recipeInstructions(recipe.getInstructions())
+                .prepTimeMin(recipe.getPrepTimeMin())
+                .cookTimeMin(recipe.getCookTimeMin())
+                .baseServings(recipe.getBaseServings())
                 .category(extractRecipeCategory(recipe))
                 .evaluated(false)
                 .score(0)
                 .suitable(false)
                 .reason(null)
                 .suggestion(null)
+                .ingredients(ingredients)
+                .nutritionSummary(nutritionSummary)
                 .build();
+    }
+
+    private List<RecommendationIngredientDetailResponse> buildIngredientDetails(Recipe recipe) {
+        if (recipe.getRecipeIngredients() == null || recipe.getRecipeIngredients().isEmpty()) {
+            return List.of();
+        }
+
+        return recipe.getRecipeIngredients().stream()
+                .map(ri -> {
+                    Ingredient ingredient = ri.getIngredient();
+                    IngredientNutrition nutrition = ingredient != null ? ingredient.getNutrition() : null;
+                    BigDecimal quantityInBaseUnit = convertToBaseQuantity(ri.getQuantity(), ri.getUnit());
+                    BigDecimal factor = quantityInBaseUnit == null
+                            ? null
+                            : quantityInBaseUnit.divide(new BigDecimal("100"), 6, RoundingMode.HALF_UP);
+
+                    return RecommendationIngredientDetailResponse.builder()
+                            .ingredientId(ingredient != null ? ingredient.getId() : null)
+                            .ingredientName(ingredient != null ? ingredient.getName() : "unknown")
+                            .category(ingredient != null ? ingredient.getCategory() : null)
+                            .quantity(ri.getQuantity())
+                            .unit(ri.getUnit())
+                            .optional(Boolean.TRUE.equals(ri.getIsOptional()))
+                            .calories(multiplyNutrition(nutrition == null ? null : nutrition.getCaloriesPer100(), factor))
+                            .protein(multiplyNutrition(nutrition == null ? null : nutrition.getProteinGPer100(), factor))
+                            .carb(multiplyNutrition(nutrition == null ? null : nutrition.getCarbGPer100(), factor))
+                            .fat(multiplyNutrition(nutrition == null ? null : nutrition.getFatGPer100(), factor))
+                            .build();
+                })
+                .toList();
+    }
+
+    private RecommendationNutritionSummaryResponse buildNutritionSummary(List<RecommendationIngredientDetailResponse> ingredients) {
+        if (ingredients == null || ingredients.isEmpty()) {
+            return RecommendationNutritionSummaryResponse.builder()
+                    .calories(BigDecimal.ZERO)
+                    .protein(BigDecimal.ZERO)
+                    .carb(BigDecimal.ZERO)
+                    .fat(BigDecimal.ZERO)
+                    .coveredIngredients(0)
+                    .totalIngredients(0)
+                    .build();
+        }
+
+        BigDecimal calories = BigDecimal.ZERO;
+        BigDecimal protein = BigDecimal.ZERO;
+        BigDecimal carb = BigDecimal.ZERO;
+        BigDecimal fat = BigDecimal.ZERO;
+        int covered = 0;
+
+        for (RecommendationIngredientDetailResponse item : ingredients) {
+            if (item.getCalories() != null || item.getProtein() != null || item.getCarb() != null || item.getFat() != null) {
+                covered++;
+            }
+
+            calories = calories.add(zeroIfNull(item.getCalories()));
+            protein = protein.add(zeroIfNull(item.getProtein()));
+            carb = carb.add(zeroIfNull(item.getCarb()));
+            fat = fat.add(zeroIfNull(item.getFat()));
+        }
+
+        return RecommendationNutritionSummaryResponse.builder()
+                .calories(scale2(calories))
+                .protein(scale2(protein))
+                .carb(scale2(carb))
+                .fat(scale2(fat))
+                .coveredIngredients(covered)
+                .totalIngredients(ingredients.size())
+                .build();
+    }
+
+    private BigDecimal convertToBaseQuantity(BigDecimal quantity, String unit) {
+        if (quantity == null || unit == null) {
+            return null;
+        }
+
+        String normalizedUnit = unit.trim().toLowerCase(Locale.ROOT);
+        if (normalizedUnit.isEmpty()) {
+            return null;
+        }
+
+        return switch (normalizedUnit) {
+            case "g", "gram", "grams" -> quantity;
+            case "kg", "kilogram", "kilograms" -> quantity.multiply(new BigDecimal("1000"));
+            case "mg", "milligram", "milligrams" -> quantity.divide(new BigDecimal("1000"), 6, RoundingMode.HALF_UP);
+            case "ml", "milliliter", "milliliters" -> quantity;
+            case "l", "liter", "liters" -> quantity.multiply(new BigDecimal("1000"));
+            default -> null;
+        };
+    }
+
+    private BigDecimal multiplyNutrition(BigDecimal valuePer100, BigDecimal factor) {
+        if (valuePer100 == null || factor == null) {
+            return null;
+        }
+        return scale2(valuePer100.multiply(factor));
+    }
+
+    private BigDecimal zeroIfNull(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
+    }
+
+    private BigDecimal scale2(BigDecimal value) {
+        return value.setScale(2, RoundingMode.HALF_UP);
     }
 
     private String nullSafe(String value) {
