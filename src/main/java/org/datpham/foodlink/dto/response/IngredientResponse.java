@@ -15,6 +15,7 @@ public class IngredientResponse {
     private String name;
     private String category;
     private String defaultUnit;
+    private BigDecimal price;
     private String imageUrl;
     private Boolean isActive;
     private LocalDateTime createdAt;

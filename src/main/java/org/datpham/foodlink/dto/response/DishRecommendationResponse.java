@@ -18,7 +18,8 @@ public class DishRecommendationResponse {
     private Integer prepTimeMin;
     private Integer cookTimeMin;
     private Integer baseServings;
-    private String category;
+    private String category; // Currently used for most frequent ingredient category
+    private List<String> dishCategories;
     private Boolean evaluated;
     private Integer score;
     private Boolean suitable;

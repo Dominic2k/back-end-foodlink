@@ -32,6 +32,14 @@ public class DishCategoryServiceImpl implements DishCategoryService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public java.util.List<DishCategoryResponse> getAllActiveCategories() {
+        return dishCategoryRepository.findByIsActiveTrue().stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    @Override
     @Transactional
     public DishCategoryResponse createCategory(DishCategoryRequest request) {
         ensureUniqueName(request.getName(), null);

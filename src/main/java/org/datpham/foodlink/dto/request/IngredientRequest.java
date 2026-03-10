@@ -15,6 +15,7 @@ public class IngredientRequest {
 
     private String category;
     private String defaultUnit;
+    private BigDecimal price;
     private String imageUrl;
     private Boolean isActive;
 

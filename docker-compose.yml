@@ -44,14 +44,8 @@
         condition: service_healthy
       redis:
         condition: service_healthy
-    environment:
-      DB_URL: jdbc:mysql://db:3306/foodlink_db?useSSL=false&allowPublicKeyRetrieval=true
-      DB_USERNAME: foodlink
-      DB_PASSWORD: foodlink123
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      JWT_SECRET: your-super-secret-jwt-key-change-this-in-production-32chars
-      JWT_EXPIRATION_MS: 86400000
+    env_file:
+      - .env
     restart: unless-stopped
 
 volumes:

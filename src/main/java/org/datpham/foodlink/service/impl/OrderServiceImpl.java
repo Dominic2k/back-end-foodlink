@@ -3,8 +3,13 @@ package org.datpham.foodlink.service.impl;
 import lombok.RequiredArgsConstructor;
 import org.datpham.foodlink.dto.response.OrderResponse;
 import org.datpham.foodlink.entity.Order;
+import org.datpham.foodlink.entity.OrderItem;
+import org.datpham.foodlink.entity.User;
+import org.datpham.foodlink.entity.Ingredient;
 import org.datpham.foodlink.exception.BusinessException;
 import org.datpham.foodlink.repository.OrderRepository;
+import org.datpham.foodlink.repository.IngredientRepository;
+import org.datpham.foodlink.repository.UserRepository;
 import org.datpham.foodlink.service.OrderService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -20,8 +25,11 @@ import java.util.stream.Collectors;
 public class OrderServiceImpl implements OrderService {
 
     private final OrderRepository orderRepository;
+    private final UserRepository userRepository;
+    private final IngredientRepository ingredientRepository;
 
     @Override
+    @Transactional(readOnly = true)
     public Page<OrderResponse> getAllOrders(String status, Pageable pageable) {
         Page<Order> orders;
 
@@ -40,6 +48,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public OrderResponse getOrderById(String id) {
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Order not found", HttpStatus.NOT_FOUND));
@@ -56,6 +65,41 @@ public class OrderServiceImpl implements OrderService {
             order.setStatus(Order.OrderStatus.valueOf(status));
         } catch (IllegalArgumentException e) {
             throw new BusinessException("Invalid status: " + status, HttpStatus.BAD_REQUEST);
+        }
+
+        Order saved = orderRepository.save(order);
+        return toResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public OrderResponse createOrder(org.datpham.foodlink.dto.request.OrderRequest request) {
+        String email = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new BusinessException("User not found", HttpStatus.UNAUTHORIZED));
+
+        Order order = new Order();
+        order.setUser(user);
+        order.setStatus(Order.OrderStatus.pending);
+        order.setDeliveryAddressText(request.getDeliveryAddressText());
+        order.setDeliveryPhone(request.getDeliveryPhone());
+        order.setNote(request.getNote());
+        order.setTotalAmount(request.getTotalAmount());
+        order.setPaymentMethod(request.getPaymentMethod());
+
+        for (var itemReq : request.getItems()) {
+            Ingredient ingredient = ingredientRepository.findById(itemReq.getIngredientId())
+                    .orElseThrow(() -> new BusinessException("Ingredient not found: " + itemReq.getIngredientId(), HttpStatus.BAD_REQUEST));
+            
+            OrderItem item = new OrderItem();
+            item.setOrder(order);
+            item.setIngredient(ingredient);
+            item.setQuantity(itemReq.getQuantity());
+            item.setUnit(itemReq.getUnit());
+            item.setPrice(itemReq.getPrice());
+            item.setLineTotal(itemReq.getLineTotal());
+            
+            order.getOrderItems().add(item);
         }
 
         Order saved = orderRepository.save(order);

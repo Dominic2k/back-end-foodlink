@@ -91,6 +91,7 @@ CREATE TABLE ingredients (
                              name VARCHAR(255) NOT NULL UNIQUE,
                              category VARCHAR(100),
                              default_unit VARCHAR(50),
+                             price DECIMAL(10,2),
                              image_url VARCHAR(512),
                              is_active BOOLEAN DEFAULT TRUE,
                              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -182,6 +183,23 @@ CREATE TABLE recipe_ingredients (
 );
 
 -- =========================
+-- RECIPE CATEGORIES (M:N)
+-- =========================
+CREATE TABLE recipe_categories (
+                                   recipe_id VARCHAR(36) NOT NULL,
+                                   category_id VARCHAR(36) NOT NULL,
+                                   PRIMARY KEY (recipe_id, category_id),
+
+                                   CONSTRAINT fk_rc_recipe
+                                       FOREIGN KEY (recipe_id) REFERENCES recipes(recipe_id)
+                                           ON DELETE CASCADE,
+
+                                   CONSTRAINT fk_rc_category
+                                       FOREIGN KEY (category_id) REFERENCES dish_categories(category_id)
+                                           ON DELETE CASCADE
+);
+
+-- =========================
 -- ORDERS
 -- =========================
 CREATE TABLE orders (
@@ -251,6 +269,7 @@ CREATE TABLE app_visits (
                             CONSTRAINT fk_visit_user
                                 FOREIGN KEY (user_id) REFERENCES users(user_id)
                                     ON DELETE SET NULL
+);
 -- =========================
 -- DISH RECOMENDATION
 -- =========================

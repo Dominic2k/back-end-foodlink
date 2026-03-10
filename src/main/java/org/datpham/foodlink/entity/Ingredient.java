@@ -24,6 +24,9 @@ public class Ingredient extends Auditable {
     @Column(name = "default_unit", length = 50)
     private String defaultUnit;
 
+    @Column(name = "price", precision = 10, scale = 2)
+    private java.math.BigDecimal price;
+
     @Column(name = "image_url", length = 512)
     private String imageUrl;
 

@@ -11,6 +11,7 @@ import org.datpham.foodlink.dto.response.RecommendationNutritionSummaryResponse;
 import org.datpham.foodlink.dto.response.RecommendationPageResponse;
 import org.datpham.foodlink.entity.*;
 import org.datpham.foodlink.exception.BusinessException;
+import org.datpham.foodlink.repository.DishCategoryRepository;
 import org.datpham.foodlink.repository.DishRecommendationRepository;
 import org.datpham.foodlink.repository.FamilyMemberRepository;
 import org.datpham.foodlink.repository.RecipeRepository;
@@ -36,6 +37,7 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
     private final FamilyMemberRepository familyMemberRepository;
     private final RecipeRepository recipeRepository;
     private final DishRecommendationRepository dishRecommendationRepository;
+    private final DishCategoryRepository dishCategoryRepository;
     private final GenaiService genaiService;
     private final ObjectMapper objectMapper;
 
@@ -60,9 +62,15 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
                 .sorted()
                 .toList();
 
+        List<String> dishCategories = dishCategoryRepository.findByIsActiveTrue().stream()
+                .map(DishCategory::getName)
+                .distinct()
+                .sorted()
+                .toList();
+
         return RecommendationFilterOptionsResponse.builder()
                 .ingredientCategories(ingredientCategories)
-                .dishCategories(List.of())
+                .dishCategories(dishCategories)
                 .build();
     }
 
@@ -77,6 +85,101 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
         return dishRecommendationRepository.findByUser_IdAndRecipe_Id(user.getId(), recipeId)
                 .map(record -> toResponse(record, true))
                 .orElseGet(() -> toUnevaluatedResponse(recipe, true));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<RecommendationIngredientDetailResponse> aggregateIngredients(List<org.datpham.foodlink.dto.request.RecipeSelectionRequest> selections) {
+        if (selections == null || selections.isEmpty()) {
+            return List.of();
+        }
+
+        Map<String, RecommendationIngredientDetailResponse> aggregatedMap = new LinkedHashMap<>();
+
+        for (org.datpham.foodlink.dto.request.RecipeSelectionRequest req : selections) {
+            Recipe recipe = recipeRepository.findById(req.getRecipeId()).orElse(null);
+            if (recipe == null || recipe.getRecipeIngredients() == null) {
+                continue;
+            }
+
+            int multiplier = Math.max(1, req.getQuantity());
+
+            for (RecipeIngredient ri : recipe.getRecipeIngredients()) {
+                Ingredient ingredient = ri.getIngredient();
+                if (ingredient == null) {
+                    continue;
+                }
+
+                String ingredientId = ingredient.getId();
+                BigDecimal baseQty = ri.getQuantity();
+                BigDecimal addedQty = baseQty != null ? baseQty.multiply(BigDecimal.valueOf(multiplier)) : BigDecimal.ZERO;
+
+                IngredientNutrition nutrition = ingredient.getNutrition();
+                BigDecimal qtyInBaseUnit = convertToBaseQuantity(addedQty, ri.getUnit());
+                BigDecimal nutritionFactor = qtyInBaseUnit != null
+                        ? qtyInBaseUnit.divide(new BigDecimal("100"), 6, RoundingMode.HALF_UP)
+                        : null;
+
+                BigDecimal addedPrice = (ingredient.getPrice() != null && addedQty != null)
+                        ? ingredient.getPrice().multiply(addedQty).setScale(0, RoundingMode.HALF_UP)
+                        : null;
+
+                BigDecimal addedCalories = multiplyNutrition(nutrition == null ? null : nutrition.getCaloriesPer100(), nutritionFactor);
+                BigDecimal addedProtein = multiplyNutrition(nutrition == null ? null : nutrition.getProteinGPer100(), nutritionFactor);
+                BigDecimal addedCarb = multiplyNutrition(nutrition == null ? null : nutrition.getCarbGPer100(), nutritionFactor);
+                BigDecimal addedFat = multiplyNutrition(nutrition == null ? null : nutrition.getFatGPer100(), nutritionFactor);
+
+                if (aggregatedMap.containsKey(ingredientId)) {
+                    RecommendationIngredientDetailResponse existing = aggregatedMap.get(ingredientId);
+
+                    BigDecimal newQty = zeroIfNull(existing.getQuantity()).add(addedQty);
+                    BigDecimal newTotalPrice = (existing.getTotalPrice() != null && addedPrice != null)
+                            ? existing.getTotalPrice().add(addedPrice)
+                            : (existing.getTotalPrice() != null ? existing.getTotalPrice() : addedPrice);
+
+                    BigDecimal newCal = (existing.getCalories() != null && addedCalories != null)
+                            ? existing.getCalories().add(addedCalories) : existing.getCalories();
+                    BigDecimal newProtein = (existing.getProtein() != null && addedProtein != null)
+                            ? existing.getProtein().add(addedProtein) : existing.getProtein();
+                    BigDecimal newCarb = (existing.getCarb() != null && addedCarb != null)
+                            ? existing.getCarb().add(addedCarb) : existing.getCarb();
+                    BigDecimal newFat = (existing.getFat() != null && addedFat != null)
+                            ? existing.getFat().add(addedFat) : existing.getFat();
+
+                    aggregatedMap.put(ingredientId, RecommendationIngredientDetailResponse.builder()
+                            .ingredientId(existing.getIngredientId())
+                            .ingredientName(existing.getIngredientName())
+                            .category(existing.getCategory())
+                            .quantity(newQty)
+                            .unit(existing.getUnit()) // assuming unit is the same, simplified
+                            .price(existing.getPrice()) // unit price
+                            .totalPrice(newTotalPrice)
+                            .calories(newCal)
+                            .protein(newProtein)
+                            .carb(newCarb)
+                            .fat(newFat)
+                            .optional(existing.getOptional())
+                            .build());
+                } else {
+                    aggregatedMap.put(ingredientId, RecommendationIngredientDetailResponse.builder()
+                            .ingredientId(ingredientId)
+                            .ingredientName(ingredient.getName())
+                            .category(ingredient.getCategory())
+                            .quantity(addedQty)
+                            .unit(ri.getUnit())
+                            .price(ingredient.getPrice())
+                            .totalPrice(addedPrice)
+                            .calories(addedCalories)
+                            .protein(addedProtein)
+                            .carb(addedCarb)
+                            .fat(addedFat)
+                            .optional(Boolean.TRUE.equals(ri.getIsOptional()))
+                            .build());
+                }
+            }
+        }
+
+        return new ArrayList<>(aggregatedMap.values());
     }
 
     @Override
@@ -361,6 +464,9 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
                 .cookTimeMin(recommendation.getRecipe().getCookTimeMin())
                 .baseServings(recommendation.getRecipe().getBaseServings())
                 .category(extractRecipeCategory(recommendation.getRecipe()))
+                .dishCategories(recommendation.getRecipe().getCategories() != null
+                        ? recommendation.getRecipe().getCategories().stream().map(DishCategory::getName).toList()
+                        : List.of())
                 .evaluated(true)
                 .score(recommendation.getScore())
                 .suitable(recommendation.getSuitable())
@@ -389,6 +495,9 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
                 .cookTimeMin(recipe.getCookTimeMin())
                 .baseServings(recipe.getBaseServings())
                 .category(extractRecipeCategory(recipe))
+                .dishCategories(recipe.getCategories() != null
+                        ? recipe.getCategories().stream().map(DishCategory::getName).toList()
+                        : List.of())
                 .evaluated(false)
                 .score(0)
                 .suitable(false)
@@ -419,6 +528,10 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
                             .category(ingredient != null ? ingredient.getCategory() : null)
                             .quantity(ri.getQuantity())
                             .unit(ri.getUnit())
+                            .price(ingredient != null ? ingredient.getPrice() : null)
+                            .totalPrice(ingredient != null && ingredient.getPrice() != null && ri.getQuantity() != null
+                                    ? ingredient.getPrice().multiply(ri.getQuantity()).setScale(0, RoundingMode.HALF_UP)
+                                    : null)
                             .optional(Boolean.TRUE.equals(ri.getIsOptional()))
                             .calories(multiplyNutrition(nutrition == null ? null : nutrition.getCaloriesPer100(), factor))
                             .protein(multiplyNutrition(nutrition == null ? null : nutrition.getProteinGPer100(), factor))

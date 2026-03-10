@@ -15,6 +15,8 @@ public class RecommendationIngredientDetailResponse {
     private String category;
     private BigDecimal quantity;
     private String unit;
+    private BigDecimal price;
+    private BigDecimal totalPrice;
     private Boolean optional;
     private BigDecimal calories;
     private BigDecimal protein;

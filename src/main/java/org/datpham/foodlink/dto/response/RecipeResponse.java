@@ -25,6 +25,7 @@ public class RecipeResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private List<RecipeIngredientItem> ingredients;
+    private List<CategoryItem> categories;
 
     @Getter
     @Builder
@@ -35,5 +36,13 @@ public class RecipeResponse {
         private BigDecimal quantity;
         private String unit;
         private Boolean isOptional;
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class CategoryItem {
+        private String id;
+        private String name;
     }
 }

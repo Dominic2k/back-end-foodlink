@@ -23,6 +23,7 @@ public class RecipeRequest {
     private String status; // draft, published, archived
 
     private List<RecipeIngredientItem> ingredients;
+    private List<String> categoryIds;
 
     @Getter
     @Setter

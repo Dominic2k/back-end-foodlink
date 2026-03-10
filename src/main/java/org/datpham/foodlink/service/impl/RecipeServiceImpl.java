@@ -1,13 +1,16 @@
 package org.datpham.foodlink.service.impl;
 
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.datpham.foodlink.dto.request.RecipeRequest;
 import org.datpham.foodlink.dto.response.RecipeResponse;
+import org.datpham.foodlink.entity.DishCategory;
 import org.datpham.foodlink.entity.Ingredient;
 import org.datpham.foodlink.entity.Recipe;
 import org.datpham.foodlink.entity.RecipeIngredient;
 import org.datpham.foodlink.entity.User;
 import org.datpham.foodlink.exception.BusinessException;
+import org.datpham.foodlink.repository.DishCategoryRepository;
 import org.datpham.foodlink.repository.IngredientRepository;
 import org.datpham.foodlink.repository.RecipeRepository;
 import org.datpham.foodlink.service.RecipeService;
@@ -27,6 +30,8 @@ public class RecipeServiceImpl implements RecipeService {
 
     private final RecipeRepository recipeRepository;
     private final IngredientRepository ingredientRepository;
+    private final DishCategoryRepository dishCategoryRepository;
+    private final EntityManager entityManager;
 
     @Override
     @Transactional(readOnly = true)
@@ -115,6 +120,13 @@ public class RecipeServiceImpl implements RecipeService {
             savedRecipe = recipeRepository.save(savedRecipe);
         }
 
+        // Set categories
+        if (request.getCategoryIds() != null && !request.getCategoryIds().isEmpty()) {
+            List<DishCategory> categories = dishCategoryRepository.findAllByIdIn(request.getCategoryIds());
+            savedRecipe.setCategories(categories);
+            savedRecipe = recipeRepository.save(savedRecipe);
+        }
+
         return toResponse(savedRecipe);
     }
 
@@ -153,7 +165,26 @@ public class RecipeServiceImpl implements RecipeService {
             }
         }
 
+        // Update categories — use native approach to avoid Hibernate collection conflicts
         Recipe saved = recipeRepository.save(recipe);
+
+        if (request.getCategoryIds() != null) {
+            recipeRepository.flush();
+            entityManager.createNativeQuery("DELETE FROM recipe_categories WHERE recipe_id = :rid")
+                    .setParameter("rid", saved.getId())
+                    .executeUpdate();
+            for (String catId : request.getCategoryIds()) {
+                entityManager.createNativeQuery("INSERT INTO recipe_categories (recipe_id, category_id) VALUES (:rid, :cid)")
+                        .setParameter("rid", saved.getId())
+                        .setParameter("cid", catId)
+                        .executeUpdate();
+            }
+            entityManager.flush();
+            entityManager.clear();
+            saved = recipeRepository.findById(id)
+                    .orElseThrow(() -> new BusinessException("Recipe not found", HttpStatus.NOT_FOUND));
+        }
+
         return toResponse(saved);
     }
 
@@ -219,6 +250,7 @@ public class RecipeServiceImpl implements RecipeService {
                 .createdAt(recipe.getCreatedAt())
                 .updatedAt(recipe.getUpdatedAt())
                 .ingredients(ingredientItems)
+                .categories(mapCategories(recipe))
                 .build();
     }
 
@@ -228,6 +260,20 @@ public class RecipeServiceImpl implements RecipeService {
             return user != null ? user.getEmail() : null;
         } catch (Exception e) {
             return null;
+        }
+    }
+
+    private List<RecipeResponse.CategoryItem> mapCategories(Recipe recipe) {
+        try {
+            if (recipe.getCategories() == null) return List.of();
+            return recipe.getCategories().stream()
+                    .map(c -> RecipeResponse.CategoryItem.builder()
+                            .id(c.getId())
+                            .name(c.getName())
+                            .build())
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            return List.of();
         }
     }
 

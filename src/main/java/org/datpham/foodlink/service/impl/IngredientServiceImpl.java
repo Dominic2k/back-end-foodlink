@@ -55,6 +55,7 @@ public class IngredientServiceImpl implements IngredientService {
         ingredient.setName(request.getName());
         ingredient.setCategory(request.getCategory());
         ingredient.setDefaultUnit(request.getDefaultUnit());
+        ingredient.setPrice(request.getPrice());
         ingredient.setImageUrl(request.getImageUrl());
         ingredient.setIsActive(request.getIsActive() != null ? request.getIsActive() : true);
 
@@ -82,6 +83,7 @@ public class IngredientServiceImpl implements IngredientService {
         ingredient.setName(request.getName());
         ingredient.setCategory(request.getCategory());
         ingredient.setDefaultUnit(request.getDefaultUnit());
+        ingredient.setPrice(request.getPrice());
         ingredient.setImageUrl(request.getImageUrl());
         if (request.getIsActive() != null) {
             ingredient.setIsActive(request.getIsActive());
@@ -128,6 +130,7 @@ public class IngredientServiceImpl implements IngredientService {
                 .name(ingredient.getName())
                 .category(ingredient.getCategory())
                 .defaultUnit(ingredient.getDefaultUnit())
+                .price(ingredient.getPrice())
                 .imageUrl(ingredient.getImageUrl())
                 .isActive(ingredient.getIsActive())
                 .createdAt(ingredient.getCreatedAt())

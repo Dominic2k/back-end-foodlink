@@ -22,4 +22,7 @@ public interface DishRecommendationService {
             String ingredientCategory,
             String dishCategory
     );
+    List<org.datpham.foodlink.dto.response.RecommendationIngredientDetailResponse> aggregateIngredients(
+            List<org.datpham.foodlink.dto.request.RecipeSelectionRequest> selections
+    );
 }

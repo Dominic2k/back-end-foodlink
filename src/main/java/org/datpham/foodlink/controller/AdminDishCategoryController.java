@@ -49,6 +49,12 @@ public class AdminDishCategoryController {
                 new BaseResponse<>(dishCategoryService.getAllCategories(search, pageable), "Success", 200));
     }
 
+    @GetMapping("/all")
+    public ResponseEntity<BaseResponse<java.util.List<DishCategoryResponse>>> getAllActive() {
+        return ResponseEntity.ok(
+                new BaseResponse<>(dishCategoryService.getAllActiveCategories(), "Success", 200));
+    }
+
     @PostMapping
     public ResponseEntity<BaseResponse<DishCategoryResponse>> create(
             @Valid @RequestBody DishCategoryRequest request) {

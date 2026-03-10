@@ -68,6 +68,19 @@ public class DishRecommendationController {
         );
     }
 
+    @PostMapping("/aggregate-ingredients")
+    public ResponseEntity<BaseResponse<List<org.datpham.foodlink.dto.response.RecommendationIngredientDetailResponse>>> aggregateIngredients(
+            @org.springframework.web.bind.annotation.RequestBody @jakarta.validation.Valid List<org.datpham.foodlink.dto.request.RecipeSelectionRequest> selections
+    ) {
+        return ResponseEntity.ok(
+                new BaseResponse<>(
+                        dishRecommendationService.aggregateIngredients(selections),
+                        "Ingredients aggregated successfully",
+                        200
+                )
+        );
+    }
+
     @PostMapping("/evaluate")
     public ResponseEntity<BaseResponse<List<DishRecommendationResponse>>> evaluateRecommendations() {
         return ResponseEntity.ok(
