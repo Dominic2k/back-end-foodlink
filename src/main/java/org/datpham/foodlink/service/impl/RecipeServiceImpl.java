@@ -20,6 +20,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.Locale;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -236,6 +239,9 @@ public class RecipeServiceImpl implements RecipeService {
             }).collect(Collectors.toList());
         }
 
+        BigDecimal totalIngredientPrice = calculateTotalIngredientPrice(recipe);
+        BigDecimal pricePerServing = calculatePricePerServing(recipe, totalIngredientPrice);
+
         return RecipeResponse.builder()
                 .id(recipe.getId())
                 .name(recipe.getName())
@@ -244,6 +250,8 @@ public class RecipeServiceImpl implements RecipeService {
                 .prepTimeMin(recipe.getPrepTimeMin())
                 .cookTimeMin(recipe.getCookTimeMin())
                 .baseServings(recipe.getBaseServings())
+                .totalIngredientPrice(totalIngredientPrice)
+                .pricePerServing(pricePerServing)
                 .imageUrl(recipe.getImageUrl())
                 .status(recipe.getStatus() != null ? recipe.getStatus().name() : "draft")
                 .createdByEmail(getCreatedByEmail(recipe))
@@ -252,6 +260,116 @@ public class RecipeServiceImpl implements RecipeService {
                 .ingredients(ingredientItems)
                 .categories(mapCategories(recipe))
                 .build();
+    }
+
+    private BigDecimal calculateTotalIngredientPrice(Recipe recipe) {
+        if (recipe.getRecipeIngredients() == null || recipe.getRecipeIngredients().isEmpty()) {
+            return null;
+        }
+
+        BigDecimal total = recipe.getRecipeIngredients().stream()
+                .map(ri -> {
+                    Ingredient ingredient = resolveIngredient(ri);
+                    BigDecimal linePrice = calculateIngredientLinePrice(ingredient, ri.getQuantity(), ri.getUnit());
+                    if (linePrice == null) {
+                        return BigDecimal.ZERO;
+                    }
+                    return linePrice;
+                })
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return total.setScale(0, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal calculatePricePerServing(Recipe recipe, BigDecimal totalIngredientPrice) {
+        if (totalIngredientPrice == null) {
+            return null;
+        }
+
+        int servings = recipe.getBaseServings() == null || recipe.getBaseServings() <= 0 ? 1 : recipe.getBaseServings();
+        return totalIngredientPrice.divide(BigDecimal.valueOf(servings), 0, RoundingMode.HALF_UP);
+    }
+
+    private Ingredient resolveIngredient(RecipeIngredient ri) {
+        try {
+            Ingredient ingredient = ri.getIngredient();
+            if (ingredient != null) return ingredient;
+        } catch (Exception ignored) {
+        }
+        if (ri.getIngredientId() == null) return null;
+        return ingredientRepository.findById(ri.getIngredientId()).orElse(null);
+    }
+
+    private BigDecimal calculateIngredientLinePrice(Ingredient ingredient, BigDecimal quantity, String quantityUnit) {
+        if (ingredient == null || ingredient.getPrice() == null || quantity == null) {
+            return null;
+        }
+
+        BigDecimal qtyInDefaultUnit = convertToDefaultUnit(quantity, quantityUnit, ingredient.getDefaultUnit());
+        if (qtyInDefaultUnit == null) {
+            return null;
+        }
+
+        return ingredient.getPrice().multiply(qtyInDefaultUnit);
+    }
+
+    private BigDecimal convertToDefaultUnit(BigDecimal quantity, String fromUnit, String toUnit) {
+        if (quantity == null) return null;
+        if (toUnit == null || toUnit.isBlank()) return quantity;
+
+        String src = normalizeUnit(fromUnit);
+        String dst = normalizeUnit(toUnit);
+
+        if (src.equals(dst) || src.isEmpty()) {
+            return quantity;
+        }
+
+        BigDecimal srcWeight = toGrams(quantity, src);
+        BigDecimal dstWeightUnit = unitToGrams(dst);
+        if (srcWeight != null && dstWeightUnit != null) {
+            return srcWeight.divide(dstWeightUnit, 6, RoundingMode.HALF_UP);
+        }
+
+        BigDecimal srcVolume = toMilliliters(quantity, src);
+        BigDecimal dstVolumeUnit = unitToMilliliters(dst);
+        if (srcVolume != null && dstVolumeUnit != null) {
+            return srcVolume.divide(dstVolumeUnit, 6, RoundingMode.HALF_UP);
+        }
+
+        return null;
+    }
+
+    private String normalizeUnit(String unit) {
+        return unit == null ? "" : unit.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private BigDecimal toGrams(BigDecimal quantity, String unit) {
+        BigDecimal unitFactor = unitToGrams(unit);
+        if (unitFactor == null) return null;
+        return quantity.multiply(unitFactor);
+    }
+
+    private BigDecimal unitToGrams(String unit) {
+        return switch (unit) {
+            case "g", "gram", "grams" -> BigDecimal.ONE;
+            case "kg", "kilogram", "kilograms" -> new BigDecimal("1000");
+            case "mg", "milligram", "milligrams" -> new BigDecimal("0.001");
+            default -> null;
+        };
+    }
+
+    private BigDecimal toMilliliters(BigDecimal quantity, String unit) {
+        BigDecimal unitFactor = unitToMilliliters(unit);
+        if (unitFactor == null) return null;
+        return quantity.multiply(unitFactor);
+    }
+
+    private BigDecimal unitToMilliliters(String unit) {
+        return switch (unit) {
+            case "ml", "milliliter", "milliliters" -> BigDecimal.ONE;
+            case "l", "liter", "liters" -> new BigDecimal("1000");
+            default -> null;
+        };
     }
 
     private String getCreatedByEmail(Recipe recipe) {

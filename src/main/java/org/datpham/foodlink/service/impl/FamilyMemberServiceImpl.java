@@ -17,6 +17,7 @@ import org.datpham.foodlink.repository.IngredientRepository;
 import org.datpham.foodlink.repository.MemberAllergyRepository;
 import org.datpham.foodlink.repository.UserRepository;
 import org.datpham.foodlink.service.FamilyMemberService;
+import org.datpham.foodlink.service.RecommendationEvaluationStatusService;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -39,6 +40,7 @@ public class FamilyMemberServiceImpl implements FamilyMemberService {
     private final MemberAllergyRepository memberAllergyRepository;
     private final UserRepository userRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final RecommendationEvaluationStatusService recommendationEvaluationStatusService;
 
     @Override
     @Transactional
@@ -227,6 +229,7 @@ public class FamilyMemberServiceImpl implements FamilyMemberService {
     }
 
     private void triggerRecommendationEvaluation(String userId) {
+        recommendationEvaluationStatusService.markQueued(userId);
         eventPublisher.publishEvent(new FamilyProfileChangedEvent(userId));
         log.info("Published family profile changed event for user {}", userId);
     }

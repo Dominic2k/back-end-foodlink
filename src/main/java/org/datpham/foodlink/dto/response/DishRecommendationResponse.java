@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Getter
@@ -18,6 +19,8 @@ public class DishRecommendationResponse {
     private Integer prepTimeMin;
     private Integer cookTimeMin;
     private Integer baseServings;
+    private BigDecimal totalIngredientPrice;
+    private BigDecimal pricePerServing;
     private String category; // Currently used for most frequent ingredient category
     private List<String> dishCategories;
     private Boolean evaluated;

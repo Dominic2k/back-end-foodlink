@@ -1,6 +1,8 @@
 package org.datpham.foodlink.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -15,6 +17,8 @@ public class IngredientRequest {
 
     private String category;
     private String defaultUnit;
+    @NotNull(message = "Price is required")
+    @DecimalMin(value = "0.0", inclusive = true, message = "Price must be greater than or equal to 0")
     private BigDecimal price;
     private String imageUrl;
     private Boolean isActive;
