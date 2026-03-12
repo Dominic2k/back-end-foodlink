@@ -28,6 +28,7 @@ public class AdminIngredientController {
     @GetMapping
     public ResponseEntity<BaseResponse<Page<IngredientResponse>>> getAll(
             @RequestParam(defaultValue = "") String search,
+            @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
@@ -36,8 +37,17 @@ public class AdminIngredientController {
         Sort sort = sortDir.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
         Pageable pageable = PageRequest.of(page, size, sort);
 
+        Boolean isActive = null;
+        if (status != null) {
+            if ("active".equalsIgnoreCase(status)) {
+                isActive = true;
+            } else if ("inactive".equalsIgnoreCase(status)) {
+                isActive = false;
+            }
+        }
+
         return ResponseEntity.ok(
-                new BaseResponse<>(ingredientService.getAllIngredients(search, pageable), "Success", 200));
+                new BaseResponse<>(ingredientService.getAllIngredients(search, isActive, pageable), "Success", 200));
     }
 
     @GetMapping("/all")

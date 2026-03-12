@@ -14,6 +14,7 @@ import org.datpham.foodlink.repository.DishCategoryRepository;
 import org.datpham.foodlink.repository.IngredientRepository;
 import org.datpham.foodlink.repository.RecipeRepository;
 import org.datpham.foodlink.service.RecipeService;
+import org.datpham.foodlink.specification.RecipeSpecification;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -35,29 +36,20 @@ public class RecipeServiceImpl implements RecipeService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<RecipeResponse> getAllRecipes(String search, String status, Pageable pageable) {
-        Page<Recipe> recipes;
+    public Page<RecipeResponse> getAllRecipes(String search, String status, String category, Pageable pageable) {
+        org.springframework.data.jpa.domain.Specification<Recipe> spec = org.springframework.data.jpa.domain.Specification.where(null);
 
-        Recipe.RecipeStatus statusEnum = null;
+        if (search != null && !search.isBlank()) {
+            spec = spec.and(RecipeSpecification.nameContains(search));
+        }
         if (status != null && !status.isBlank()) {
-            try {
-                statusEnum = Recipe.RecipeStatus.valueOf(status);
-            } catch (IllegalArgumentException ignored) {
-            }
+            spec = spec.and(RecipeSpecification.hasStatus(status));
+        }
+        if (category != null && !category.isBlank()) {
+            spec = spec.and(RecipeSpecification.hasCategory(category));
         }
 
-        boolean hasSearch = search != null && !search.isBlank();
-
-        if (hasSearch && statusEnum != null) {
-            recipes = recipeRepository.findByNameContainingIgnoreCaseAndStatus(search, statusEnum, pageable);
-        } else if (hasSearch) {
-            recipes = recipeRepository.findByNameContainingIgnoreCase(search, pageable);
-        } else if (statusEnum != null) {
-            recipes = recipeRepository.findByStatus(statusEnum, pageable);
-        } else {
-            recipes = recipeRepository.findAll(pageable);
-        }
-
+        Page<Recipe> recipes = recipeRepository.findAll(spec, pageable);
         return recipes.map(this::toResponse);
     }
 

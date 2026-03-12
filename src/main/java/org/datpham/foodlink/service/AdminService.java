@@ -10,7 +10,7 @@ import org.springframework.data.domain.Pageable;
 import java.util.List;
 
 public interface AdminService {
-    Page<AdminUserResponse> getAllUsers(String search, Pageable pageable);
+    Page<AdminUserResponse> getAllUsers(String search, String role, String status, Pageable pageable);
     AdminUserResponse getUserById(String id);
     AdminUserResponse updateUserStatus(String id, AdminUpdateStatusRequest request);
     AdminStatsResponse getStats();
