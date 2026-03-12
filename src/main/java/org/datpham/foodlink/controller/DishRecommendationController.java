@@ -3,9 +3,11 @@ package org.datpham.foodlink.controller;
 import lombok.RequiredArgsConstructor;
 import org.datpham.foodlink.common.BaseResponse;
 import org.datpham.foodlink.dto.response.DishRecommendationResponse;
+import org.datpham.foodlink.dto.response.RecommendationEvaluationStatusResponse;
 import org.datpham.foodlink.dto.response.RecommendationFilterOptionsResponse;
 import org.datpham.foodlink.dto.response.RecommendationPageResponse;
 import org.datpham.foodlink.service.DishRecommendationService;
+import org.datpham.foodlink.service.RecommendationEvaluationStatusService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,6 +24,14 @@ import java.util.List;
 public class DishRecommendationController {
 
     private final DishRecommendationService dishRecommendationService;
+    private final RecommendationEvaluationStatusService recommendationEvaluationStatusService;
+
+    @GetMapping("/status")
+    public ResponseEntity<BaseResponse<RecommendationEvaluationStatusResponse>> getEvaluationStatus() {
+        return ResponseEntity.ok(
+                new BaseResponse<>(recommendationEvaluationStatusService.getCurrentUserStatus(), "Success", 200)
+        );
+    }
 
     @GetMapping("/filter-options")
     public ResponseEntity<BaseResponse<RecommendationFilterOptionsResponse>> getFilterOptions() {

@@ -19,6 +19,8 @@ public class RecipeResponse {
     private Integer prepTimeMin;
     private Integer cookTimeMin;
     private Integer baseServings;
+    private BigDecimal totalIngredientPrice;
+    private BigDecimal pricePerServing;
     private String imageUrl;
     private String status;
     private String createdByEmail;

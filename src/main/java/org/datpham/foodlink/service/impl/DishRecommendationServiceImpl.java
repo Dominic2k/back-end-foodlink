@@ -14,6 +14,7 @@ import org.datpham.foodlink.exception.BusinessException;
 import org.datpham.foodlink.repository.DishCategoryRepository;
 import org.datpham.foodlink.repository.DishRecommendationRepository;
 import org.datpham.foodlink.repository.FamilyMemberRepository;
+import org.datpham.foodlink.repository.IngredientRepository;
 import org.datpham.foodlink.repository.RecipeRepository;
 import org.datpham.foodlink.repository.UserRepository;
 import org.datpham.foodlink.service.DishRecommendationService;
@@ -38,6 +39,7 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
     private final RecipeRepository recipeRepository;
     private final DishRecommendationRepository dishRecommendationRepository;
     private final DishCategoryRepository dishCategoryRepository;
+    private final IngredientRepository ingredientRepository;
     private final GenaiService genaiService;
     private final ObjectMapper objectMapper;
 
@@ -105,7 +107,7 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
             int multiplier = Math.max(1, req.getQuantity());
 
             for (RecipeIngredient ri : recipe.getRecipeIngredients()) {
-                Ingredient ingredient = ri.getIngredient();
+                Ingredient ingredient = resolveIngredient(ri);
                 if (ingredient == null) {
                     continue;
                 }
@@ -120,9 +122,10 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
                         ? qtyInBaseUnit.divide(new BigDecimal("100"), 6, RoundingMode.HALF_UP)
                         : null;
 
-                BigDecimal addedPrice = (ingredient.getPrice() != null && addedQty != null)
-                        ? ingredient.getPrice().multiply(addedQty).setScale(0, RoundingMode.HALF_UP)
-                        : null;
+                BigDecimal addedPrice = calculateIngredientLinePrice(ingredient, addedQty, ri.getUnit());
+                if (addedPrice != null) {
+                    addedPrice = addedPrice.setScale(0, RoundingMode.HALF_UP);
+                }
 
                 BigDecimal addedCalories = multiplyNutrition(nutrition == null ? null : nutrition.getCaloriesPer100(), nutritionFactor);
                 BigDecimal addedProtein = multiplyNutrition(nutrition == null ? null : nutrition.getProteinGPer100(), nutritionFactor);
@@ -453,6 +456,8 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
         RecommendationNutritionSummaryResponse nutritionSummary = includeDetails
                 ? buildNutritionSummary(ingredients)
                 : null;
+        BigDecimal totalIngredientPrice = calculateTotalIngredientPrice(recommendation.getRecipe(), ingredients);
+        BigDecimal pricePerServing = calculatePricePerServing(recommendation.getRecipe(), totalIngredientPrice);
 
         return DishRecommendationResponse.builder()
                 .recipeId(recommendation.getRecipe().getId())
@@ -463,6 +468,8 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
                 .prepTimeMin(recommendation.getRecipe().getPrepTimeMin())
                 .cookTimeMin(recommendation.getRecipe().getCookTimeMin())
                 .baseServings(recommendation.getRecipe().getBaseServings())
+                .totalIngredientPrice(totalIngredientPrice)
+                .pricePerServing(pricePerServing)
                 .category(extractRecipeCategory(recommendation.getRecipe()))
                 .dishCategories(recommendation.getRecipe().getCategories() != null
                         ? recommendation.getRecipe().getCategories().stream().map(DishCategory::getName).toList()
@@ -484,6 +491,8 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
         RecommendationNutritionSummaryResponse nutritionSummary = includeDetails
                 ? buildNutritionSummary(ingredients)
                 : null;
+        BigDecimal totalIngredientPrice = calculateTotalIngredientPrice(recipe, ingredients);
+        BigDecimal pricePerServing = calculatePricePerServing(recipe, totalIngredientPrice);
 
         return DishRecommendationResponse.builder()
                 .recipeId(recipe.getId())
@@ -494,6 +503,8 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
                 .prepTimeMin(recipe.getPrepTimeMin())
                 .cookTimeMin(recipe.getCookTimeMin())
                 .baseServings(recipe.getBaseServings())
+                .totalIngredientPrice(totalIngredientPrice)
+                .pricePerServing(pricePerServing)
                 .category(extractRecipeCategory(recipe))
                 .dishCategories(recipe.getCategories() != null
                         ? recipe.getCategories().stream().map(DishCategory::getName).toList()
@@ -515,12 +526,13 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
 
         return recipe.getRecipeIngredients().stream()
                 .map(ri -> {
-                    Ingredient ingredient = ri.getIngredient();
+                    Ingredient ingredient = resolveIngredient(ri);
                     IngredientNutrition nutrition = ingredient != null ? ingredient.getNutrition() : null;
                     BigDecimal quantityInBaseUnit = convertToBaseQuantity(ri.getQuantity(), ri.getUnit());
                     BigDecimal factor = quantityInBaseUnit == null
                             ? null
                             : quantityInBaseUnit.divide(new BigDecimal("100"), 6, RoundingMode.HALF_UP);
+                    BigDecimal linePrice = calculateIngredientLinePrice(ingredient, ri.getQuantity(), ri.getUnit());
 
                     return RecommendationIngredientDetailResponse.builder()
                             .ingredientId(ingredient != null ? ingredient.getId() : null)
@@ -529,9 +541,7 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
                             .quantity(ri.getQuantity())
                             .unit(ri.getUnit())
                             .price(ingredient != null ? ingredient.getPrice() : null)
-                            .totalPrice(ingredient != null && ingredient.getPrice() != null && ri.getQuantity() != null
-                                    ? ingredient.getPrice().multiply(ri.getQuantity()).setScale(0, RoundingMode.HALF_UP)
-                                    : null)
+                            .totalPrice(linePrice != null ? linePrice.setScale(0, RoundingMode.HALF_UP) : null)
                             .optional(Boolean.TRUE.equals(ri.getIsOptional()))
                             .calories(multiplyNutrition(nutrition == null ? null : nutrition.getCaloriesPer100(), factor))
                             .protein(multiplyNutrition(nutrition == null ? null : nutrition.getProteinGPer100(), factor))
@@ -579,6 +589,124 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
                 .coveredIngredients(covered)
                 .totalIngredients(ingredients.size())
                 .build();
+    }
+
+    private BigDecimal calculateTotalIngredientPrice(Recipe recipe, List<RecommendationIngredientDetailResponse> ingredients) {
+        if (ingredients != null && !ingredients.isEmpty()) {
+            return ingredients.stream()
+                    .map(RecommendationIngredientDetailResponse::getTotalPrice)
+                    .filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add)
+                    .setScale(0, RoundingMode.HALF_UP);
+        }
+
+        if (recipe == null || recipe.getRecipeIngredients() == null) {
+            return null;
+        }
+
+        return recipe.getRecipeIngredients().stream()
+                .map(ri -> {
+                    Ingredient ingredient = resolveIngredient(ri);
+                    BigDecimal linePrice = calculateIngredientLinePrice(ingredient, ri.getQuantity(), ri.getUnit());
+                    if (linePrice == null) {
+                        return BigDecimal.ZERO;
+                    }
+                    return linePrice;
+                })
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(0, RoundingMode.HALF_UP);
+    }
+
+    private Ingredient resolveIngredient(RecipeIngredient ri) {
+        try {
+            Ingredient ingredient = ri.getIngredient();
+            if (ingredient != null) return ingredient;
+        } catch (Exception ignored) {
+        }
+        if (ri.getIngredientId() == null) return null;
+        return ingredientRepository.findById(ri.getIngredientId()).orElse(null);
+    }
+
+    private BigDecimal calculateIngredientLinePrice(Ingredient ingredient, BigDecimal quantity, String quantityUnit) {
+        if (ingredient == null || ingredient.getPrice() == null || quantity == null) {
+            return null;
+        }
+
+        BigDecimal qtyInDefaultUnit = convertToDefaultUnit(quantity, quantityUnit, ingredient.getDefaultUnit());
+        if (qtyInDefaultUnit == null) {
+            return null;
+        }
+
+        return ingredient.getPrice().multiply(qtyInDefaultUnit);
+    }
+
+    private BigDecimal convertToDefaultUnit(BigDecimal quantity, String fromUnit, String toUnit) {
+        if (quantity == null) return null;
+        if (toUnit == null || toUnit.isBlank()) return quantity;
+
+        String src = normalizeUnit(fromUnit);
+        String dst = normalizeUnit(toUnit);
+
+        if (src.equals(dst) || src.isEmpty()) {
+            return quantity;
+        }
+
+        BigDecimal srcWeight = toGrams(quantity, src);
+        BigDecimal dstWeightUnit = unitToGrams(dst);
+        if (srcWeight != null && dstWeightUnit != null) {
+            return srcWeight.divide(dstWeightUnit, 6, RoundingMode.HALF_UP);
+        }
+
+        BigDecimal srcVolume = toMilliliters(quantity, src);
+        BigDecimal dstVolumeUnit = unitToMilliliters(dst);
+        if (srcVolume != null && dstVolumeUnit != null) {
+            return srcVolume.divide(dstVolumeUnit, 6, RoundingMode.HALF_UP);
+        }
+
+        return null;
+    }
+
+    private String normalizeUnit(String unit) {
+        return unit == null ? "" : unit.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private BigDecimal toGrams(BigDecimal quantity, String unit) {
+        BigDecimal unitFactor = unitToGrams(unit);
+        if (unitFactor == null) return null;
+        return quantity.multiply(unitFactor);
+    }
+
+    private BigDecimal unitToGrams(String unit) {
+        return switch (unit) {
+            case "g", "gram", "grams" -> BigDecimal.ONE;
+            case "kg", "kilogram", "kilograms" -> new BigDecimal("1000");
+            case "mg", "milligram", "milligrams" -> new BigDecimal("0.001");
+            default -> null;
+        };
+    }
+
+    private BigDecimal toMilliliters(BigDecimal quantity, String unit) {
+        BigDecimal unitFactor = unitToMilliliters(unit);
+        if (unitFactor == null) return null;
+        return quantity.multiply(unitFactor);
+    }
+
+    private BigDecimal unitToMilliliters(String unit) {
+        return switch (unit) {
+            case "ml", "milliliter", "milliliters" -> BigDecimal.ONE;
+            case "l", "liter", "liters" -> new BigDecimal("1000");
+            default -> null;
+        };
+    }
+
+    private BigDecimal calculatePricePerServing(Recipe recipe, BigDecimal totalIngredientPrice) {
+        if (recipe == null || totalIngredientPrice == null) {
+            return null;
+        }
+
+        int servings = recipe.getBaseServings() == null || recipe.getBaseServings() <= 0 ? 1 : recipe.getBaseServings();
+        return totalIngredientPrice
+                .divide(BigDecimal.valueOf(servings), 0, RoundingMode.HALF_UP);
     }
 
     private BigDecimal convertToBaseQuantity(BigDecimal quantity, String unit) {
