@@ -40,6 +40,11 @@ public class RecipeSpecification {
         };
     }
 
+    public static Specification<Recipe> createdByContains(String createdBy) {
+        return (root, query, cb) -> {
+            if (!StringUtils.hasText(createdBy)) {
+                return cb.conjunction();
+            }
             return cb.like(cb.lower(root.join("createdBy").get("email")), "%" + createdBy.trim().toLowerCase() + "%");
         };
     }
