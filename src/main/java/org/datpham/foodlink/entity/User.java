@@ -5,6 +5,8 @@ import lombok.Getter;
 import lombok.Setter;
 import org.datpham.foodlink.enums.UserStatus;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Getter
 @Setter
@@ -40,4 +42,7 @@ public class User extends Auditable {
 
     @Column(name = "is_admin")
     private Boolean isAdmin = false;
+
+    @Column(name = "last_login_at")
+    private LocalDateTime lastLoginAt;
 }
