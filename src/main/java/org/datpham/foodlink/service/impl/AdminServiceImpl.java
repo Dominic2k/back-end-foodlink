@@ -44,6 +44,7 @@ public class AdminServiceImpl implements AdminService {
     private final OrderRepository orderRepository;
     private final AppVisitRepository appVisitRepository;
     private final ActivityLogService activityLogService;
+    private final UserSessionRepository userSessionRepository;
 
     @Override
     public Page<AdminUserResponse> getAllUsers(String search, String role, String status, Pageable pageable) {
@@ -204,6 +205,16 @@ public class AdminServiceImpl implements AdminService {
     }
 
     private AdminUserResponse toAdminUserResponse(User user) {
+        // Get latest session duration
+        Long lastSessionDuration = userSessionRepository
+                .findTopByUserIdOrderByStartedAtDesc(user.getId())
+                .map(s -> s.getDurationSeconds())
+                .orElse(null);
+
+        // Get average session duration
+        Double avgSessionDuration = userSessionRepository
+                .findAverageSessionDurationByUserId(user.getId());
+
         return AdminUserResponse.builder()
                 .id(user.getId())
                 .email(user.getEmail())
@@ -215,6 +226,9 @@ public class AdminServiceImpl implements AdminService {
                 .isAdmin(user.getIsAdmin())
                 .createdAt(user.getCreatedAt())
                 .updatedAt(user.getUpdatedAt())
+                .lastLoginAt(user.getLastLoginAt())
+                .lastSessionDurationSeconds(lastSessionDuration)
+                .avgSessionDurationSeconds(avgSessionDuration)
                 .build();
     }
 

@@ -21,4 +21,7 @@ public class AdminUserResponse {
     private Boolean isAdmin;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private LocalDateTime lastLoginAt;
+    private Long lastSessionDurationSeconds;
+    private Double avgSessionDurationSeconds;
 }
