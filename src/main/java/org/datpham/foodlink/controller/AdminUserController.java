@@ -33,6 +33,8 @@ public class AdminUserController {
     @GetMapping("/users")
     public ResponseEntity<BaseResponse<Page<AdminUserResponse>>> getAllUsers(
             @RequestParam(defaultValue = "") String search,
+            @RequestParam(required = false) String role,
+            @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
@@ -44,7 +46,7 @@ public class AdminUserController {
         Pageable pageable = PageRequest.of(page, size, sort);
 
         return ResponseEntity.ok(
-                new BaseResponse<>(adminService.getAllUsers(search, pageable), "Success", 200)
+                new BaseResponse<>(adminService.getAllUsers(search, role, status, pageable), "Success", 200)
         );
     }
 

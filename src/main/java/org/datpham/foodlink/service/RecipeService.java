@@ -6,7 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 public interface RecipeService {
-    Page<RecipeResponse> getAllRecipes(String search, String status, Pageable pageable);
+    Page<RecipeResponse> getAllRecipes(String search, String status, String category, Pageable pageable);
     RecipeResponse getRecipeById(String id);
     RecipeResponse createRecipe(RecipeRequest request);
     RecipeResponse updateRecipe(String id, RecipeRequest request);

@@ -31,6 +31,7 @@ public class AdminRecipeController {
     public ResponseEntity<BaseResponse<Page<RecipeResponse>>> getAll(
             @RequestParam(defaultValue = "") String search,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) String category,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
@@ -40,7 +41,7 @@ public class AdminRecipeController {
         Pageable pageable = PageRequest.of(page, size, sort);
 
         return ResponseEntity.ok(
-                new BaseResponse<>(recipeService.getAllRecipes(search, status, pageable), "Success", 200));
+                new BaseResponse<>(recipeService.getAllRecipes(search, status, category, pageable), "Success", 200));
     }
 
     @GetMapping("/{id}")

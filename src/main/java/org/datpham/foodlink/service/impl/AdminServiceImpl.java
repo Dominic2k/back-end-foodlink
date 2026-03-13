@@ -15,6 +15,7 @@ import org.datpham.foodlink.entity.Recipe;
 import org.datpham.foodlink.repository.*;
 import org.datpham.foodlink.service.ActivityLogService;
 import org.datpham.foodlink.service.AdminService;
+import org.datpham.foodlink.specification.UserSpecification;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -45,14 +46,19 @@ public class AdminServiceImpl implements AdminService {
     private final ActivityLogService activityLogService;
 
     @Override
-    public Page<AdminUserResponse> getAllUsers(String search, Pageable pageable) {
-        Page<User> users;
+    public Page<AdminUserResponse> getAllUsers(String search, String role, String status, Pageable pageable) {
+        org.springframework.data.jpa.domain.Specification<User> spec = org.springframework.data.jpa.domain.Specification.where(null);
+
         if (search != null && !search.isBlank()) {
-            users = userRepository.findByFullNameContainingIgnoreCaseOrEmailContainingIgnoreCase(
-                    search, search, pageable);
-        } else {
-            users = userRepository.findAll(pageable);
+            spec = spec.and(UserSpecification.fullNameOrEmailContains(search));
         }
+        if (role != null && !role.isBlank()) {
+            spec = spec.and(UserSpecification.hasRole(role));
+        }
+        if (status != null && !status.isBlank()) {
+            spec = spec.and(UserSpecification.hasStatus(status));
+        }
+        Page<User> users = userRepository.findAll(spec, pageable);
         return users.map(this::toAdminUserResponse);
     }
 

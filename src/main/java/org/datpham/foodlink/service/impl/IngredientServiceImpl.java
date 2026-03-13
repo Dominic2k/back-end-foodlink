@@ -8,6 +8,7 @@ import org.datpham.foodlink.entity.IngredientNutrition;
 import org.datpham.foodlink.exception.BusinessException;
 import org.datpham.foodlink.repository.IngredientRepository;
 import org.datpham.foodlink.service.IngredientService;
+import org.datpham.foodlink.specification.IngredientSpecification;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -23,14 +24,17 @@ public class IngredientServiceImpl implements IngredientService {
     private final IngredientRepository ingredientRepository;
 
     @Override
-    public Page<IngredientResponse> getAllIngredients(String search, Pageable pageable) {
-        Page<Ingredient> ingredients;
+    public Page<IngredientResponse> getAllIngredients(String search, Boolean isActive, Pageable pageable) {
+        org.springframework.data.jpa.domain.Specification<Ingredient> spec = org.springframework.data.jpa.domain.Specification.where(null);
+
         if (search != null && !search.isBlank()) {
-            ingredients = ingredientRepository
-                    .findByNameContainingIgnoreCaseOrCategoryContainingIgnoreCase(search, search, pageable);
-        } else {
-            ingredients = ingredientRepository.findAll(pageable);
+            spec = spec.and(IngredientSpecification.nameOrCategoryContains(search));
         }
+        if (isActive != null) {
+            spec = spec.and(IngredientSpecification.hasIsActive(isActive));
+        }
+
+        Page<Ingredient> ingredients = ingredientRepository.findAll(spec, pageable);
         return ingredients.map(this::toResponse);
     }
 
