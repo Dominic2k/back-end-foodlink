@@ -37,6 +37,8 @@ public class RecipeResponse {
         private String ingredientName;
         private BigDecimal quantity;
         private String unit;
+        private BigDecimal quantityBase;
+        private String baseUnit;
         private Boolean isOptional;
     }
 

@@ -14,8 +14,9 @@ public class IngredientResponse {
     private String id;
     private String name;
     private String category;
-    private String defaultUnit;
-    private BigDecimal price;
+    private String baseUnit;
+    private BigDecimal pricePerBaseUnit;
+    private BigDecimal stockQuantityBase;
     private String imageUrl;
     private Boolean isActive;
     private LocalDateTime createdAt;

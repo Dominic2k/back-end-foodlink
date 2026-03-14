@@ -31,11 +31,23 @@ public class OrderResponse {
     @AllArgsConstructor
     public static class OrderItemResponse {
         private String id;
+        private String recipeId;
+        private String recipeName;
+        private Integer servings;
+        private BigDecimal pricePerServingSnapshot;
+        private BigDecimal lineTotal;
+        private List<OrderIngredientResponse> ingredients;
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class OrderIngredientResponse {
         private String ingredientId;
         private String ingredientName;
-        private BigDecimal quantity;
-        private String unit;
-        private BigDecimal price;
+        private BigDecimal quantityBase;
+        private String baseUnit;
+        private BigDecimal unitPriceSnapshot;
         private BigDecimal lineTotal;
     }
 }

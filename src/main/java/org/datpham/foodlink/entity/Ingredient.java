@@ -21,11 +21,14 @@ public class Ingredient extends Auditable {
     @Column(name = "category", length = 100)
     private String category;
 
-    @Column(name = "default_unit", length = 50)
-    private String defaultUnit;
+    @Column(name = "base_unit", nullable = false, length = 50)
+    private String baseUnit;
 
-    @Column(name = "price", precision = 10, scale = 2)
-    private java.math.BigDecimal price;
+    @Column(name = "price_per_base_unit", nullable = false, precision = 12, scale = 4)
+    private java.math.BigDecimal pricePerBaseUnit;
+
+    @Column(name = "stock_quantity_base", nullable = false, precision = 12, scale = 3)
+    private java.math.BigDecimal stockQuantityBase = java.math.BigDecimal.ZERO;
 
     @Column(name = "image_url", length = 512)
     private String imageUrl;

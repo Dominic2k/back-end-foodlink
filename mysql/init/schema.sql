@@ -1,6 +1,8 @@
 -- =========================
 -- DATABASE
 -- =========================
+
+-- =========================
 -- USERS
 -- =========================
 CREATE TABLE users (
@@ -90,14 +92,14 @@ CREATE TABLE ingredients (
                              ingredient_id VARCHAR(36) PRIMARY KEY,
                              name VARCHAR(255) NOT NULL UNIQUE,
                              category VARCHAR(100),
-                             default_unit VARCHAR(50),
-                             price DECIMAL(10,2),
+                             base_unit VARCHAR(50) NOT NULL,
+                             price_per_base_unit DECIMAL(12,4) NOT NULL,
+                             stock_quantity_base DECIMAL(12,3) NOT NULL DEFAULT 0,
                              image_url VARCHAR(512),
                              is_active BOOLEAN DEFAULT TRUE,
                              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
-
 
 -- =========================
 -- MEMBER ALLERGIES
@@ -159,7 +161,6 @@ CREATE TABLE recipes (
                              FOREIGN KEY (created_by) REFERENCES users(user_id)
                                  ON DELETE SET NULL
 );
-
 
 -- =========================
 -- RECIPE INGREDIENTS
@@ -229,19 +230,36 @@ CREATE TABLE orders (
 CREATE TABLE order_items (
                              order_item_id VARCHAR(36) PRIMARY KEY,
                              order_id VARCHAR(36) NOT NULL,
-                             ingredient_id VARCHAR(36) NOT NULL,
-
-                             quantity DECIMAL(10,2) NOT NULL,
-                             unit VARCHAR(50) NOT NULL,
-                             price DECIMAL(10,2),
+                             recipe_id VARCHAR(36) NOT NULL,
+                             servings INT NOT NULL,
+                             price_per_serving_snapshot DECIMAL(12,2),
                              line_total DECIMAL(12,2),
 
                              CONSTRAINT fk_oi_order
                                  FOREIGN KEY (order_id) REFERENCES orders(order_id)
                                      ON DELETE CASCADE,
 
-                             CONSTRAINT fk_oi_ingredient
-                                 FOREIGN KEY (ingredient_id) REFERENCES ingredients(ingredient_id)
+                             CONSTRAINT fk_oi_recipe
+                                 FOREIGN KEY (recipe_id) REFERENCES recipes(recipe_id)
+                                     ON DELETE RESTRICT
+);
+
+CREATE TABLE order_item_ingredients (
+                                        order_item_ingredient_id VARCHAR(36) PRIMARY KEY,
+                                        order_item_id VARCHAR(36) NOT NULL,
+                                        ingredient_id VARCHAR(36) NOT NULL,
+                                        ingredient_name_snapshot VARCHAR(255) NOT NULL,
+                                        quantity_base DECIMAL(12,3) NOT NULL,
+                                        base_unit VARCHAR(50) NOT NULL,
+                                        unit_price_snapshot DECIMAL(12,4) NOT NULL,
+                                        line_total DECIMAL(12,2) NOT NULL,
+
+                                        CONSTRAINT fk_oii_order_item
+                                            FOREIGN KEY (order_item_id) REFERENCES order_items(order_item_id)
+                                                ON DELETE CASCADE,
+
+                                        CONSTRAINT fk_oii_ingredient
+                                            FOREIGN KEY (ingredient_id) REFERENCES ingredients(ingredient_id)
                                      ON DELETE RESTRICT
 );
 
