@@ -38,4 +38,10 @@ public class OrderController {
         OrderResponse response = orderService.getMyOrderById(id);
         return ResponseEntity.ok(new BaseResponse<>(response, "Fetched order successfully", 200));
     }
+
+    @PutMapping("/{id}/cancel")
+    public ResponseEntity<BaseResponse<OrderResponse>> cancelMyOrder(@PathVariable String id) {
+        OrderResponse response = orderService.cancelMyOrder(id);
+        return ResponseEntity.ok(new BaseResponse<>(response, "Order canceled successfully", 200));
+    }
 }

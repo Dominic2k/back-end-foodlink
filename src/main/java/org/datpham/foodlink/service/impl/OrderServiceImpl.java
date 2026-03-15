@@ -81,6 +81,24 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    @Transactional
+    public OrderResponse cancelMyOrder(String id) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        Order order = orderRepository.findByIdAndUserEmail(id, email)
+                .orElseThrow(() -> new BusinessException("Order not found", HttpStatus.NOT_FOUND));
+
+        Order.OrderStatus currentStatus = order.getStatus();
+        if (currentStatus != Order.OrderStatus.pending) {
+            throw new BusinessException("Only pending orders can be canceled", HttpStatus.BAD_REQUEST);
+        }
+
+        adjustStockFromExistingOrder(order, false);
+        order.setStatus(Order.OrderStatus.canceled);
+        Order saved = orderRepository.save(order);
+        return toResponse(saved);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public OrderResponse getOrderById(String id) {
         Order order = orderRepository.findById(id)
