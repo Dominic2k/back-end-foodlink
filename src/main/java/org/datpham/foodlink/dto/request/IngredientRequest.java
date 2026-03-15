@@ -16,10 +16,14 @@ public class IngredientRequest {
     private String name;
 
     private String category;
-    private String defaultUnit;
-    @NotNull(message = "Price is required")
-    @DecimalMin(value = "0.0", inclusive = true, message = "Price must be greater than or equal to 0")
-    private BigDecimal price;
+    @NotBlank(message = "Base unit is required")
+    private String baseUnit;
+    @NotNull(message = "Price per base unit is required")
+    @DecimalMin(value = "0.0", inclusive = true, message = "Price per base unit must be greater than or equal to 0")
+    private BigDecimal pricePerBaseUnit;
+    @NotNull(message = "Stock quantity is required")
+    @DecimalMin(value = "0.0", inclusive = true, message = "Stock quantity must be greater than or equal to 0")
+    private BigDecimal stockQuantityBase;
     private String imageUrl;
     private Boolean isActive;
 

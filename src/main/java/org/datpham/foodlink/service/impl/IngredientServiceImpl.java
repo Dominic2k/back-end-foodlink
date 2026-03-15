@@ -9,6 +9,7 @@ import org.datpham.foodlink.exception.BusinessException;
 import org.datpham.foodlink.repository.IngredientRepository;
 import org.datpham.foodlink.service.IngredientService;
 import org.datpham.foodlink.specification.IngredientSpecification;
+import org.datpham.foodlink.util.IngredientUnitSupport;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -58,8 +59,9 @@ public class IngredientServiceImpl implements IngredientService {
         Ingredient ingredient = new Ingredient();
         ingredient.setName(request.getName());
         ingredient.setCategory(request.getCategory());
-        ingredient.setDefaultUnit(request.getDefaultUnit());
-        ingredient.setPrice(request.getPrice());
+        ingredient.setBaseUnit(IngredientUnitSupport.normalizeUnit(request.getBaseUnit()));
+        ingredient.setPricePerBaseUnit(request.getPricePerBaseUnit());
+        ingredient.setStockQuantityBase(request.getStockQuantityBase());
         ingredient.setImageUrl(request.getImageUrl());
         ingredient.setIsActive(request.getIsActive() != null ? request.getIsActive() : true);
 
@@ -86,8 +88,9 @@ public class IngredientServiceImpl implements IngredientService {
 
         ingredient.setName(request.getName());
         ingredient.setCategory(request.getCategory());
-        ingredient.setDefaultUnit(request.getDefaultUnit());
-        ingredient.setPrice(request.getPrice());
+        ingredient.setBaseUnit(IngredientUnitSupport.normalizeUnit(request.getBaseUnit()));
+        ingredient.setPricePerBaseUnit(request.getPricePerBaseUnit());
+        ingredient.setStockQuantityBase(request.getStockQuantityBase());
         ingredient.setImageUrl(request.getImageUrl());
         if (request.getIsActive() != null) {
             ingredient.setIsActive(request.getIsActive());
@@ -133,8 +136,9 @@ public class IngredientServiceImpl implements IngredientService {
                 .id(ingredient.getId())
                 .name(ingredient.getName())
                 .category(ingredient.getCategory())
-                .defaultUnit(ingredient.getDefaultUnit())
-                .price(ingredient.getPrice())
+                .baseUnit(ingredient.getBaseUnit())
+                .pricePerBaseUnit(ingredient.getPricePerBaseUnit())
+                .stockQuantityBase(ingredient.getStockQuantityBase())
                 .imageUrl(ingredient.getImageUrl())
                 .isActive(ingredient.getIsActive())
                 .createdAt(ingredient.getCreatedAt())

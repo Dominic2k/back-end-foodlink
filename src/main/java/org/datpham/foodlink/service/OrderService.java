@@ -6,6 +6,7 @@ import org.springframework.data.domain.Pageable;
 
 public interface OrderService {
     Page<OrderResponse> getAllOrders(String status, Pageable pageable);
+    Page<OrderResponse> getMyOrders(Pageable pageable);
     OrderResponse getOrderById(String id);
     OrderResponse updateOrderStatus(String id, String status);
     OrderResponse createOrder(org.datpham.foodlink.dto.request.OrderRequest request);

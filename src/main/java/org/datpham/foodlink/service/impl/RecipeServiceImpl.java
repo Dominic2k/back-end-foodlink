@@ -15,6 +15,7 @@ import org.datpham.foodlink.repository.IngredientRepository;
 import org.datpham.foodlink.repository.RecipeRepository;
 import org.datpham.foodlink.service.RecipeService;
 import org.datpham.foodlink.specification.RecipeSpecification;
+import org.datpham.foodlink.util.IngredientUnitSupport;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -23,7 +24,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.Locale;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -71,10 +71,11 @@ public class RecipeServiceImpl implements RecipeService {
         List<ResolvedIngredient> resolvedIngredients = new ArrayList<>();
         if (request.getIngredients() != null && !request.getIngredients().isEmpty()) {
             for (RecipeRequest.RecipeIngredientItem item : request.getIngredients()) {
+                String ingredientId = resolveIngredientId(item);
                 resolvedIngredients.add(new ResolvedIngredient(
-                        resolveIngredientId(item),
+                        ingredientId,
                         item.getQuantity(),
-                        item.getUnit(),
+                        resolveRecipeUnit(item, ingredientId),
                         item.getIsOptional() != null ? item.getIsOptional() : false
                 ));
             }
@@ -150,11 +151,12 @@ public class RecipeServiceImpl implements RecipeService {
         if (request.getIngredients() != null) {
             recipe.getRecipeIngredients().clear();
             for (RecipeRequest.RecipeIngredientItem item : request.getIngredients()) {
+                String ingredientId = resolveIngredientId(item);
                 RecipeIngredient ri = new RecipeIngredient();
                 ri.setRecipeId(recipe.getId());
-                ri.setIngredientId(resolveIngredientId(item));
+                ri.setIngredientId(ingredientId);
                 ri.setQuantity(item.getQuantity());
-                ri.setUnit(item.getUnit());
+                ri.setUnit(resolveRecipeUnit(item, ingredientId));
                 ri.setIsOptional(item.getIsOptional() != null ? item.getIsOptional() : false);
                 recipe.getRecipeIngredients().add(ri);
             }
@@ -226,6 +228,8 @@ public class RecipeServiceImpl implements RecipeService {
                         .ingredientName(ingredientName)
                         .quantity(ri.getQuantity())
                         .unit(ri.getUnit())
+                        .quantityBase(resolveQuantityBase(ri))
+                        .baseUnit(resolveBaseUnit(ri))
                         .isOptional(ri.getIsOptional())
                         .build();
             }).collect(Collectors.toList());
@@ -270,7 +274,7 @@ public class RecipeServiceImpl implements RecipeService {
                 })
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        return total.setScale(0, RoundingMode.HALF_UP);
+        return total.setScale(2, RoundingMode.HALF_UP);
     }
 
     private BigDecimal calculatePricePerServing(Recipe recipe, BigDecimal totalIngredientPrice) {
@@ -279,7 +283,7 @@ public class RecipeServiceImpl implements RecipeService {
         }
 
         int servings = recipe.getBaseServings() == null || recipe.getBaseServings() <= 0 ? 1 : recipe.getBaseServings();
-        return totalIngredientPrice.divide(BigDecimal.valueOf(servings), 0, RoundingMode.HALF_UP);
+        return totalIngredientPrice.divide(BigDecimal.valueOf(servings), 2, RoundingMode.HALF_UP);
     }
 
     private Ingredient resolveIngredient(RecipeIngredient ri) {
@@ -293,75 +297,17 @@ public class RecipeServiceImpl implements RecipeService {
     }
 
     private BigDecimal calculateIngredientLinePrice(Ingredient ingredient, BigDecimal quantity, String quantityUnit) {
-        if (ingredient == null || ingredient.getPrice() == null || quantity == null) {
-            return null;
-        }
-
-        BigDecimal qtyInDefaultUnit = convertToDefaultUnit(quantity, quantityUnit, ingredient.getDefaultUnit());
-        if (qtyInDefaultUnit == null) {
-            return null;
-        }
-
-        return ingredient.getPrice().multiply(qtyInDefaultUnit);
+        return IngredientUnitSupport.calculateLinePriceFromRequestUnit(ingredient, quantity, quantityUnit);
     }
 
-    private BigDecimal convertToDefaultUnit(BigDecimal quantity, String fromUnit, String toUnit) {
-        if (quantity == null) return null;
-        if (toUnit == null || toUnit.isBlank()) return quantity;
-
-        String src = normalizeUnit(fromUnit);
-        String dst = normalizeUnit(toUnit);
-
-        if (src.equals(dst) || src.isEmpty()) {
-            return quantity;
-        }
-
-        BigDecimal srcWeight = toGrams(quantity, src);
-        BigDecimal dstWeightUnit = unitToGrams(dst);
-        if (srcWeight != null && dstWeightUnit != null) {
-            return srcWeight.divide(dstWeightUnit, 6, RoundingMode.HALF_UP);
-        }
-
-        BigDecimal srcVolume = toMilliliters(quantity, src);
-        BigDecimal dstVolumeUnit = unitToMilliliters(dst);
-        if (srcVolume != null && dstVolumeUnit != null) {
-            return srcVolume.divide(dstVolumeUnit, 6, RoundingMode.HALF_UP);
-        }
-
-        return null;
+    private BigDecimal resolveQuantityBase(RecipeIngredient ri) {
+        Ingredient ingredient = resolveIngredient(ri);
+        return IngredientUnitSupport.convertToBaseQuantity(ingredient, ri.getQuantity(), ri.getUnit());
     }
 
-    private String normalizeUnit(String unit) {
-        return unit == null ? "" : unit.trim().toLowerCase(Locale.ROOT);
-    }
-
-    private BigDecimal toGrams(BigDecimal quantity, String unit) {
-        BigDecimal unitFactor = unitToGrams(unit);
-        if (unitFactor == null) return null;
-        return quantity.multiply(unitFactor);
-    }
-
-    private BigDecimal unitToGrams(String unit) {
-        return switch (unit) {
-            case "g", "gram", "grams" -> BigDecimal.ONE;
-            case "kg", "kilogram", "kilograms" -> new BigDecimal("1000");
-            case "mg", "milligram", "milligrams" -> new BigDecimal("0.001");
-            default -> null;
-        };
-    }
-
-    private BigDecimal toMilliliters(BigDecimal quantity, String unit) {
-        BigDecimal unitFactor = unitToMilliliters(unit);
-        if (unitFactor == null) return null;
-        return quantity.multiply(unitFactor);
-    }
-
-    private BigDecimal unitToMilliliters(String unit) {
-        return switch (unit) {
-            case "ml", "milliliter", "milliliters" -> BigDecimal.ONE;
-            case "l", "liter", "liters" -> new BigDecimal("1000");
-            default -> null;
-        };
+    private String resolveBaseUnit(RecipeIngredient ri) {
+        Ingredient ingredient = resolveIngredient(ri);
+        return ingredient != null ? ingredient.getBaseUnit() : null;
     }
 
     private String getCreatedByEmail(Recipe recipe) {
@@ -387,6 +333,16 @@ public class RecipeServiceImpl implements RecipeService {
         }
     }
 
+    private String resolveRecipeUnit(RecipeRequest.RecipeIngredientItem item, String ingredientId) {
+        if (item.getUnit() != null && !item.getUnit().isBlank()) {
+            return IngredientUnitSupport.normalizeUnit(item.getUnit());
+        }
+
+        return ingredientRepository.findById(ingredientId)
+                .map(Ingredient::getBaseUnit)
+                .orElse(null);
+    }
+
     /**
      * Resolves an ingredient ID from the request item.
      * If ingredientId is provided, validates it exists.
@@ -405,6 +361,12 @@ public class RecipeServiceImpl implements RecipeService {
                     .orElseGet(() -> {
                         Ingredient newIng = new Ingredient();
                         newIng.setName(item.getIngredientName().trim());
+                        newIng.setBaseUnit(item.getUnit() != null && !item.getUnit().isBlank()
+                                ? IngredientUnitSupport.normalizeUnit(item.getUnit())
+                                : "piece");
+                        newIng.setPricePerBaseUnit(BigDecimal.ZERO);
+                        newIng.setStockQuantityBase(BigDecimal.ZERO);
+                        newIng.setIsActive(true);
                         return ingredientRepository.save(newIng).getId();
                     });
         }

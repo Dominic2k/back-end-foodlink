@@ -9,5 +9,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface OrderRepository extends JpaRepository<Order, String> {
     Page<Order> findByStatus(Order.OrderStatus status, Pageable pageable);
+    Page<Order> findByUserEmailOrderByCreatedAtDesc(String email, Pageable pageable);
     long countByStatus(Order.OrderStatus status);
 }

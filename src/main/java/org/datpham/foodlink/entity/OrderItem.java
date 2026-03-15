@@ -5,6 +5,8 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Getter
@@ -22,18 +24,18 @@ public class OrderItem {
     private Order order;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "ingredient_id", nullable = false)
-    private Ingredient ingredient;
+    @JoinColumn(name = "recipe_id", nullable = false)
+    private Recipe recipe;
 
-    @Column(name = "quantity", nullable = false, precision = 10, scale = 2)
-    private BigDecimal quantity;
+    @Column(name = "servings", nullable = false)
+    private Integer servings;
 
-    @Column(name = "unit", nullable = false, length = 50)
-    private String unit;
-
-    @Column(name = "price", precision = 10, scale = 2)
-    private BigDecimal price;
+    @Column(name = "price_per_serving_snapshot", precision = 12, scale = 2)
+    private BigDecimal pricePerServingSnapshot;
 
     @Column(name = "line_total", precision = 12, scale = 2)
     private BigDecimal lineTotal;
+
+    @OneToMany(mappedBy = "orderItem", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<OrderItemIngredient> ingredientSnapshots = new ArrayList<>();
 }
