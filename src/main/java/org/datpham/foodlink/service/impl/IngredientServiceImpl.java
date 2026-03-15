@@ -56,8 +56,11 @@ public class IngredientServiceImpl implements IngredientService {
     @Override
     @Transactional
     public IngredientResponse createIngredient(IngredientRequest request) {
+        String ingredientName = request.getName().trim();
+        ensureUniqueName(ingredientName, null);
+
         Ingredient ingredient = new Ingredient();
-        ingredient.setName(request.getName());
+        ingredient.setName(ingredientName);
         ingredient.setCategory(request.getCategory());
         ingredient.setBaseUnit(IngredientUnitSupport.normalizeUnit(request.getBaseUnit()));
         ingredient.setPricePerBaseUnit(request.getPricePerBaseUnit());
@@ -86,7 +89,10 @@ public class IngredientServiceImpl implements IngredientService {
         Ingredient ingredient = ingredientRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Ingredient not found", HttpStatus.NOT_FOUND));
 
-        ingredient.setName(request.getName());
+        String ingredientName = request.getName().trim();
+        ensureUniqueName(ingredientName, id);
+
+        ingredient.setName(ingredientName);
         ingredient.setCategory(request.getCategory());
         ingredient.setBaseUnit(IngredientUnitSupport.normalizeUnit(request.getBaseUnit()));
         ingredient.setPricePerBaseUnit(request.getPricePerBaseUnit());
@@ -128,6 +134,14 @@ public class IngredientServiceImpl implements IngredientService {
                 || request.getProteinGPer100() != null
                 || request.getCarbGPer100() != null
                 || request.getFatGPer100() != null;
+    }
+
+    private void ensureUniqueName(String name, String currentId) {
+        ingredientRepository.findByNameIgnoreCase(name).ifPresent(existing -> {
+            if (currentId == null || !existing.getId().equals(currentId)) {
+                throw new BusinessException("Ingredient name '" + name + "' already exists", HttpStatus.CONFLICT);
+            }
+        });
     }
 
     private IngredientResponse toResponse(Ingredient ingredient) {
