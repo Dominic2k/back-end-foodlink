@@ -57,4 +57,12 @@ public class AdminOrderController {
         return ResponseEntity.ok(
                 new BaseResponse<>(result, "Status updated successfully", 200));
     }
+
+    @PutMapping("/{id}/cancel")
+    public ResponseEntity<BaseResponse<OrderResponse>> cancelOrder(@PathVariable String id) {
+        OrderResponse response = orderService.cancelOrder(id);
+        activityLogService.log(ActivityLog.Action.STATUS_CHANGE, "Order", id,
+                "Canceled order via admin");
+        return ResponseEntity.ok(new BaseResponse<>(response, "Order canceled successfully", 200));
+    }
 }

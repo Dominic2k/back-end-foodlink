@@ -108,17 +108,23 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
+    public OrderResponse cancelOrder(String id) {
+        Order order = orderRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("Order not found", HttpStatus.NOT_FOUND));
+        return changeOrderStatus(order, Order.OrderStatus.canceled);
+    }
+
+    @Override
+    @Transactional
     public OrderResponse updateOrderStatus(String id, String status) {
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Order not found", HttpStatus.NOT_FOUND));
 
-        Order.OrderStatus newStatus;
-        try {
-            newStatus = Order.OrderStatus.valueOf(status);
-        } catch (IllegalArgumentException e) {
-            throw new BusinessException("Invalid status: " + status, HttpStatus.BAD_REQUEST);
-        }
+        Order.OrderStatus newStatus = parseOrderStatus(status);
+        return changeOrderStatus(order, newStatus);
+    }
 
+    private OrderResponse changeOrderStatus(Order order, Order.OrderStatus newStatus) {
         Order.OrderStatus oldStatus = order.getStatus();
         if (oldStatus == newStatus) {
             return toResponse(order);
@@ -133,6 +139,17 @@ public class OrderServiceImpl implements OrderService {
         order.setStatus(newStatus);
         Order saved = orderRepository.save(order);
         return toResponse(saved);
+    }
+
+    private Order.OrderStatus parseOrderStatus(String status) {
+        if (status == null || status.isBlank()) {
+            throw new BusinessException("Invalid status: " + status, HttpStatus.BAD_REQUEST);
+        }
+        try {
+            return Order.OrderStatus.valueOf(status);
+        } catch (IllegalArgumentException e) {
+            throw new BusinessException("Invalid status: " + status, HttpStatus.BAD_REQUEST);
+        }
     }
 
     @Override
