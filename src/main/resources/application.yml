@@ -2,14 +2,17 @@ spring:
   redis:
     host: ${REDIS_HOST:localhost}
     port: ${REDIS_PORT:6379}
+
   datasource:
     url: ${DB_URL:jdbc:mysql://localhost:3306/foodlink_db?useSSL=false&allowPublicKeyRetrieval=true}
     username: ${DB_USERNAME:foodlink}
     password: ${DB_PASSWORD:foodlink123}
+
   jpa:
     hibernate:
       ddl-auto: update
     open-in-view: false
+
   mail:
     host: ${MAIL_HOST:smtp.gmail.com}
     port: ${MAIL_PORT:587}
@@ -27,6 +30,10 @@ app:
     secret: ${JWT_SECRET:your-super-secret-jwt-key-change-this-in-production-32chars}
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
 
+stripe:
+  secret:
+    key: ${STRIPE_SECRET_KEY}
+
 logging:
   level:
     root: INFO
@@ -34,4 +41,3 @@ logging:
     com.google.genai: DEBUG
   file:
     name: logs/app-runtime.log
-
