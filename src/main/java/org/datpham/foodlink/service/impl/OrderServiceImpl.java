@@ -73,6 +73,15 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional(readOnly = true)
+    public OrderResponse getMyOrderById(String id) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        Order order = orderRepository.findByIdAndUserEmail(id, email)
+                .orElseThrow(() -> new BusinessException("Order not found", HttpStatus.NOT_FOUND));
+        return toResponse(order);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public OrderResponse getOrderById(String id) {
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Order not found", HttpStatus.NOT_FOUND));

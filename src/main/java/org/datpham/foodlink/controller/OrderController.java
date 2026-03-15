@@ -32,4 +32,10 @@ public class OrderController {
         Page<OrderResponse> response = orderService.getMyOrders(pageable);
         return ResponseEntity.ok(new BaseResponse<>(response, "Fetched my orders successfully", 200));
     }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<BaseResponse<OrderResponse>> getMyOrderById(@PathVariable String id) {
+        OrderResponse response = orderService.getMyOrderById(id);
+        return ResponseEntity.ok(new BaseResponse<>(response, "Fetched order successfully", 200));
+    }
 }

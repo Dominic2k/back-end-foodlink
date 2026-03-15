@@ -15,6 +15,7 @@ CREATE TABLE users (
                        avatar_url VARCHAR(512),
                        status ENUM('active', 'blocked') DEFAULT 'active',
                        is_admin BOOLEAN DEFAULT FALSE,
+                       last_login_at DATETIME NULL,
                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
