@@ -24,6 +24,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -161,6 +162,10 @@ public class FamilyMemberServiceImpl implements FamilyMemberService {
     }
 
     private void updateMemberFields(FamilyMember member, FamilyMemberRequest request) {
+        if (request.getBirthDate() != null && request.getBirthDate().isAfter(LocalDate.now())) {
+            throw new BusinessException("Birth date cannot be in the future", HttpStatus.BAD_REQUEST);
+        }
+
         member.setDisplayName(request.getDisplayName());
         member.setRelationship(request.getRelationship());
         member.setGender(request.getGender());
