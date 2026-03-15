@@ -2,6 +2,7 @@ package org.datpham.foodlink.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
@@ -27,6 +28,7 @@ public class FamilyMemberRequest {
 
     private Gender gender;
 
+    @PastOrPresent(message = "Birth date cannot be in the future")
     private LocalDate birthDate;
 
     private BigDecimal heightCm;
