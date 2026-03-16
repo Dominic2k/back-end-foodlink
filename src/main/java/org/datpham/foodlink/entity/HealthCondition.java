@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import java.time.LocalDateTime;
 
 @Entity
 @Getter
@@ -22,6 +23,35 @@ public class HealthCondition {
 
     @Column(name = "name", nullable = false, unique = true)
     private String name;
+
+    @Column(name = "description", columnDefinition = "TEXT")
+    private String description;
+
+    @Column(name = "dietary_advice", columnDefinition = "TEXT")
+    private String dietaryAdvice;
+
+    @Column(name = "exercise_advice", columnDefinition = "TEXT")
+    private String exerciseAdvice;
+
+    @Column(name = "image_url", length = 512)
+    private String imageUrl;
+
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 
     public HealthCondition(String code, String name) {
         this.code = code;

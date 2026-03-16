@@ -52,7 +52,13 @@ CREATE TABLE family_members (
 CREATE TABLE health_conditions (
                                    condition_id VARCHAR(36) PRIMARY KEY,
                                    code VARCHAR(50) UNIQUE,
-                                   name VARCHAR(255) NOT NULL UNIQUE
+                                   name VARCHAR(255) NOT NULL UNIQUE,
+                                   description TEXT,
+                                   dietary_advice TEXT,
+                                   exercise_advice TEXT,
+                                   image_url VARCHAR(512),
+                                   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 -- =========================
