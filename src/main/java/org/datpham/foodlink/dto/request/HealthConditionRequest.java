@@ -13,4 +13,9 @@ public class HealthConditionRequest {
 
     @NotBlank(message = "Name is required")
     private String name;
+
+    private String description;
+    private String dietaryAdvice;
+    private String exerciseAdvice;
+    private String imageUrl;
 }

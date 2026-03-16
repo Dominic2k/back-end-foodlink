@@ -51,6 +51,10 @@ public class HealthConditionServiceImpl implements HealthConditionService {
         });
 
         HealthCondition hc = new HealthCondition(request.getCode(), request.getName());
+        hc.setDescription(request.getDescription());
+        hc.setDietaryAdvice(request.getDietaryAdvice());
+        hc.setExerciseAdvice(request.getExerciseAdvice());
+        hc.setImageUrl(request.getImageUrl());
         HealthCondition saved = healthConditionRepository.save(hc);
         return toResponse(saved);
     }
@@ -76,6 +80,10 @@ public class HealthConditionServiceImpl implements HealthConditionService {
 
         hc.setCode(request.getCode());
         hc.setName(request.getName());
+        hc.setDescription(request.getDescription());
+        hc.setDietaryAdvice(request.getDietaryAdvice());
+        hc.setExerciseAdvice(request.getExerciseAdvice());
+        hc.setImageUrl(request.getImageUrl());
         HealthCondition saved = healthConditionRepository.save(hc);
         return toResponse(saved);
     }
@@ -94,6 +102,10 @@ public class HealthConditionServiceImpl implements HealthConditionService {
                 .id(hc.getId())
                 .code(hc.getCode())
                 .name(hc.getName())
+                .description(hc.getDescription())
+                .dietaryAdvice(hc.getDietaryAdvice())
+                .exerciseAdvice(hc.getExerciseAdvice())
+                .imageUrl(hc.getImageUrl())
                 .build();
     }
 }

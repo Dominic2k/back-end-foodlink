@@ -16,12 +16,16 @@ public class EmailServiceImpl implements EmailService {
 
     private final JavaMailSender mailSender;
 
+    @org.springframework.beans.factory.annotation.Value("${spring.mail.username}")
+    private String fromEmail;
+
     @Override
     public void sendPasswordResetOtp(String toEmail, String otpCode) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
+            helper.setFrom(fromEmail != null ? fromEmail.trim() : "");
             helper.setTo(toEmail);
             helper.setSubject("FoodLink - Mã xác nhận đặt lại mật khẩu");
             helper.setText(buildOtpEmailHtml(otpCode), true);
