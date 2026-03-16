@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 @Getter
 @Setter
@@ -21,10 +22,11 @@ public class IngredientRequest {
     @NotNull(message = "Price per base unit is required")
     @DecimalMin(value = "0.0", inclusive = true, message = "Price per base unit must be greater than or equal to 0")
     private BigDecimal pricePerBaseUnit;
-    @NotNull(message = "Stock quantity is required")
     @DecimalMin(value = "0.0", inclusive = true, message = "Stock quantity must be greater than or equal to 0")
     private BigDecimal stockQuantityBase;
     private String imageUrl;
+    private LocalDate expirationDate;
+    private LocalDate receivedDate;
     private Boolean isActive;
 
     // Nutrition

@@ -30,6 +30,8 @@ app:
   jwt:
     secret: ${JWT_SECRET:your-super-secret-jwt-key-change-this-in-production-32chars}
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+  ingredient:
+    expiring-soon-days: ${INGREDIENT_EXPIRING_SOON_DAYS:7}
 
 stripe:
   secret:

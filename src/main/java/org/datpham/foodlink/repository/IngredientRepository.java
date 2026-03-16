@@ -28,4 +28,8 @@ public interface IngredientRepository extends JpaRepository<Ingredient, String>,
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select i from Ingredient i where i.id in :ids")
     List<Ingredient> findAllByIdInForUpdate(@Param("ids") Collection<String> ids);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select i from Ingredient i where i.id = :id")
+    Optional<Ingredient> findByIdForUpdate(@Param("id") String id);
 }

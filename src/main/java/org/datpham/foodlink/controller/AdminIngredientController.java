@@ -3,6 +3,7 @@ package org.datpham.foodlink.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.datpham.foodlink.common.BaseResponse;
+import org.datpham.foodlink.dto.request.IngredientReceiveStockRequest;
 import org.datpham.foodlink.dto.request.IngredientRequest;
 import org.datpham.foodlink.dto.response.IngredientResponse;
 import org.datpham.foodlink.entity.ActivityLog;
@@ -81,6 +82,16 @@ public class AdminIngredientController {
                 "Updated ingredient: " + request.getName());
         return ResponseEntity.ok(
                 new BaseResponse<>(result, "Updated successfully", 200));
+    }
+
+    @PostMapping("/{id}/receive")
+    public ResponseEntity<BaseResponse<IngredientResponse>> receiveStock(
+            @PathVariable String id,
+            @Valid @RequestBody IngredientReceiveStockRequest request) {
+        IngredientResponse result = ingredientService.receiveStock(id, request);
+        activityLogService.log(ActivityLog.Action.UPDATE, "Ingredient", id,
+                "Received stock for ingredient #" + id.substring(0, 8) + ": +" + request.getQuantityBase());
+        return ResponseEntity.ok(new BaseResponse<>(result, "Stock received successfully", 200));
     }
 
     @DeleteMapping("/{id}")

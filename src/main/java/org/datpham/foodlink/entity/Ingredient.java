@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.LocalDate;
+
 @Entity
 @Getter
 @Setter
@@ -32,6 +34,12 @@ public class Ingredient extends Auditable {
 
     @Column(name = "image_url", length = 512)
     private String imageUrl;
+
+    @Column(name = "expiration_date")
+    private LocalDate expirationDate;
+
+    @Column(name = "received_date")
+    private LocalDate receivedDate;
 
     @Column(name = "is_active")
     private Boolean isActive = true;
