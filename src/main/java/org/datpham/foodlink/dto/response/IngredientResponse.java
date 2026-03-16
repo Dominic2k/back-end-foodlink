@@ -3,8 +3,10 @@ package org.datpham.foodlink.dto.response;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import org.datpham.foodlink.enums.IngredientExpirationStatus;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Getter
@@ -18,6 +20,9 @@ public class IngredientResponse {
     private BigDecimal pricePerBaseUnit;
     private BigDecimal stockQuantityBase;
     private String imageUrl;
+    private LocalDate expirationDate;
+    private LocalDate receivedDate;
+    private IngredientExpirationStatus expirationStatus;
     private Boolean isActive;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

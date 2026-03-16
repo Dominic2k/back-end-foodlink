@@ -16,6 +16,7 @@ import org.datpham.foodlink.repository.OrderRepository;
 import org.datpham.foodlink.repository.RecipeRepository;
 import org.datpham.foodlink.repository.UserRepository;
 import org.datpham.foodlink.service.OrderService;
+import org.datpham.foodlink.util.DateUtils;
 import org.datpham.foodlink.util.IngredientUnitSupport;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -320,6 +321,9 @@ public class OrderServiceImpl implements OrderService {
     private void validatePurchasableIngredient(Ingredient ingredient) {
         if (!Boolean.TRUE.equals(ingredient.getIsActive())) {
             throw new BusinessException("Ingredient is inactive: " + ingredient.getName(), HttpStatus.BAD_REQUEST);
+        }
+        if (ingredient.getExpirationDate() != null && ingredient.getExpirationDate().isBefore(DateUtils.today())) {
+            throw new BusinessException("Ingredient is expired: " + ingredient.getName(), HttpStatus.BAD_REQUEST);
         }
         if (ingredient.getBaseUnit() == null || ingredient.getBaseUnit().isBlank()) {
             throw new BusinessException("Ingredient base unit is missing: " + ingredient.getName(), HttpStatus.BAD_REQUEST);

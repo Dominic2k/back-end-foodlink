@@ -2,19 +2,27 @@ package org.datpham.foodlink.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import org.datpham.foodlink.dto.request.IngredientRequest;
+import org.datpham.foodlink.dto.request.IngredientReceiveStockRequest;
 import org.datpham.foodlink.dto.response.IngredientResponse;
 import org.datpham.foodlink.entity.Ingredient;
 import org.datpham.foodlink.entity.IngredientNutrition;
+import org.datpham.foodlink.enums.IngredientExpirationStatus;
 import org.datpham.foodlink.exception.BusinessException;
 import org.datpham.foodlink.repository.IngredientRepository;
 import org.datpham.foodlink.service.IngredientService;
 import org.datpham.foodlink.specification.IngredientSpecification;
+import org.datpham.foodlink.util.DateUtils;
 import org.datpham.foodlink.util.IngredientUnitSupport;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
 
 import java.util.List;
 
@@ -23,6 +31,9 @@ import java.util.List;
 public class IngredientServiceImpl implements IngredientService {
 
     private final IngredientRepository ingredientRepository;
+
+    @Value("${app.ingredient.expiring-soon-days:7}")
+    private long expiringSoonDays;
 
     @Override
     public Page<IngredientResponse> getAllIngredients(String search, Boolean isActive, Pageable pageable) {
@@ -59,13 +70,17 @@ public class IngredientServiceImpl implements IngredientService {
         String ingredientName = request.getName().trim();
         ensureUniqueName(ingredientName, null);
 
+        validateExpirationAndReceivedDates(request.getExpirationDate(), request.getReceivedDate());
+
         Ingredient ingredient = new Ingredient();
         ingredient.setName(ingredientName);
         ingredient.setCategory(request.getCategory());
         ingredient.setBaseUnit(IngredientUnitSupport.normalizeUnit(request.getBaseUnit()));
         ingredient.setPricePerBaseUnit(request.getPricePerBaseUnit());
-        ingredient.setStockQuantityBase(request.getStockQuantityBase());
+        ingredient.setStockQuantityBase(request.getStockQuantityBase() != null ? request.getStockQuantityBase() : BigDecimal.ZERO);
         ingredient.setImageUrl(request.getImageUrl());
+        ingredient.setExpirationDate(request.getExpirationDate());
+        ingredient.setReceivedDate(request.getReceivedDate());
         ingredient.setIsActive(request.getIsActive() != null ? request.getIsActive() : true);
 
         // Nutrition
@@ -92,12 +107,20 @@ public class IngredientServiceImpl implements IngredientService {
         String ingredientName = request.getName().trim();
         ensureUniqueName(ingredientName, id);
 
+        validateExpirationAndReceivedDates(request.getExpirationDate(), request.getReceivedDate());
+
         ingredient.setName(ingredientName);
         ingredient.setCategory(request.getCategory());
         ingredient.setBaseUnit(IngredientUnitSupport.normalizeUnit(request.getBaseUnit()));
         ingredient.setPricePerBaseUnit(request.getPricePerBaseUnit());
-        ingredient.setStockQuantityBase(request.getStockQuantityBase());
+        if (request.getStockQuantityBase() != null) {
+            ingredient.setStockQuantityBase(request.getStockQuantityBase());
+        }
         ingredient.setImageUrl(request.getImageUrl());
+        ingredient.setExpirationDate(request.getExpirationDate());
+        if (request.getReceivedDate() != null) {
+            ingredient.setReceivedDate(request.getReceivedDate());
+        }
         if (request.getIsActive() != null) {
             ingredient.setIsActive(request.getIsActive());
         }
@@ -115,6 +138,30 @@ public class IngredientServiceImpl implements IngredientService {
             nutrition.setCarbGPer100(request.getCarbGPer100());
             nutrition.setFatGPer100(request.getFatGPer100());
         }
+
+        Ingredient saved = ingredientRepository.save(ingredient);
+        return toResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public IngredientResponse receiveStock(String id, IngredientReceiveStockRequest request) {
+        Ingredient ingredient = ingredientRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new BusinessException("Ingredient not found", HttpStatus.NOT_FOUND));
+
+        LocalDate receivedDate = request.getReceivedDate() != null ? request.getReceivedDate() : DateUtils.today();
+        LocalDate expirationDate = ingredient.getExpirationDate();
+        if (expirationDate != null && expirationDate.isBefore(receivedDate)) {
+            throw new BusinessException(
+                    "Cannot receive expired ingredient '" + ingredient.getName() + "' (expirationDate=" + expirationDate + ")",
+                    HttpStatus.BAD_REQUEST
+            );
+        }
+
+        BigDecimal currentStock = ingredient.getStockQuantityBase() != null ? ingredient.getStockQuantityBase() : BigDecimal.ZERO;
+        BigDecimal quantity = request.getQuantityBase() != null ? request.getQuantityBase() : BigDecimal.ZERO;
+        ingredient.setStockQuantityBase(scaleQuantity(currentStock.add(quantity)));
+        ingredient.setReceivedDate(receivedDate);
 
         Ingredient saved = ingredientRepository.save(ingredient);
         return toResponse(saved);
@@ -146,6 +193,7 @@ public class IngredientServiceImpl implements IngredientService {
 
     private IngredientResponse toResponse(Ingredient ingredient) {
         IngredientNutrition n = ingredient.getNutrition();
+        LocalDate expirationDate = ingredient.getExpirationDate();
         return IngredientResponse.builder()
                 .id(ingredient.getId())
                 .name(ingredient.getName())
@@ -154,6 +202,9 @@ public class IngredientServiceImpl implements IngredientService {
                 .pricePerBaseUnit(ingredient.getPricePerBaseUnit())
                 .stockQuantityBase(ingredient.getStockQuantityBase())
                 .imageUrl(ingredient.getImageUrl())
+                .expirationDate(expirationDate)
+                .receivedDate(ingredient.getReceivedDate())
+                .expirationStatus(calculateExpirationStatus(expirationDate))
                 .isActive(ingredient.getIsActive())
                 .createdAt(ingredient.getCreatedAt())
                 .updatedAt(ingredient.getUpdatedAt())
@@ -162,5 +213,36 @@ public class IngredientServiceImpl implements IngredientService {
                 .carbGPer100(n != null ? n.getCarbGPer100() : null)
                 .fatGPer100(n != null ? n.getFatGPer100() : null)
                 .build();
+    }
+
+    private void validateExpirationAndReceivedDates(LocalDate expirationDate, LocalDate receivedDate) {
+        if (expirationDate != null && receivedDate != null && expirationDate.isBefore(receivedDate)) {
+            throw new BusinessException("expirationDate must be on/after receivedDate", HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    private IngredientExpirationStatus calculateExpirationStatus(LocalDate expirationDate) {
+        if (expirationDate == null) {
+            return null;
+        }
+
+        LocalDate today = DateUtils.today();
+        if (expirationDate.isBefore(today)) {
+            return IngredientExpirationStatus.expired;
+        }
+
+        LocalDate expiringSoonCutoff = today.plusDays(expiringSoonDays);
+        if (!expirationDate.isAfter(expiringSoonCutoff)) {
+            return IngredientExpirationStatus.expiringSoon;
+        }
+
+        return IngredientExpirationStatus.valid;
+    }
+
+    private BigDecimal scaleQuantity(BigDecimal value) {
+        if (value == null) {
+            return BigDecimal.ZERO.setScale(3, RoundingMode.HALF_UP);
+        }
+        return value.setScale(3, RoundingMode.HALF_UP);
     }
 }
