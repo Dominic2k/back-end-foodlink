@@ -11,12 +11,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.datpham.foodlink.service.UserService;
+import org.datpham.foodlink.service.CloudinaryService;
+import org.springframework.web.multipart.MultipartFile;
+import java.io.IOException;
 
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+    private final CloudinaryService cloudinaryService;
 
     @Override
     public UserProfileResponse getProfile() {
@@ -36,6 +40,19 @@ public class UserServiceImpl implements UserService {
 
         User saved = userRepository.save(user);
         return toProfileResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public String uploadAvatar(MultipartFile file) throws IOException {
+        User user = getCurrentUser();
+        String folderName = "avatars/" + user.getId();
+        String avatarUrl = cloudinaryService.uploadImage(file, folderName);
+        
+        user.setAvatarUrl(avatarUrl);
+        userRepository.save(user);
+        
+        return avatarUrl;
     }
 
     private User getCurrentUser() {

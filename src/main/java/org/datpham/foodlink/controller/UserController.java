@@ -6,6 +6,8 @@ import org.datpham.foodlink.dto.request.UpdateProfileRequest;
 import org.datpham.foodlink.service.UserService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import java.io.IOException;
 
 import lombok.RequiredArgsConstructor;
 import org.datpham.foodlink.dto.response.UserProfileResponse;
@@ -29,6 +31,13 @@ public class UserController {
             @Valid @RequestBody UpdateProfileRequest request) {
         return ResponseEntity.ok(
                 new BaseResponse<>(userService.updateProfile(request), "Profile updated successfully", 200)
+        );
+    }
+
+    @PostMapping("/me/avatar")
+    public ResponseEntity<BaseResponse<String>> uploadAvatar(@RequestParam("file") MultipartFile file) throws IOException {
+        return ResponseEntity.ok(
+                new BaseResponse<>(userService.uploadAvatar(file), "Avatar uploaded successfully", 200)
         );
     }
 }
