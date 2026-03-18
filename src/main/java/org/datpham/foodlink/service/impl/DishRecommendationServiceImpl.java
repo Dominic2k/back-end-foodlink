@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.datpham.foodlink.dto.response.DishRecommendationResponse;
+import org.datpham.foodlink.dto.response.DishRatingSummaryResponse;
+import org.datpham.foodlink.dto.response.DishReviewResponse;
 import org.datpham.foodlink.dto.response.RecommendationIngredientDetailResponse;
 import org.datpham.foodlink.dto.response.RecommendationFilterOptionsResponse;
 import org.datpham.foodlink.dto.response.RecommendationNutritionSummaryResponse;
@@ -15,6 +17,7 @@ import org.datpham.foodlink.repository.DishCategoryRepository;
 import org.datpham.foodlink.repository.DishRecommendationRepository;
 import org.datpham.foodlink.repository.FamilyMemberRepository;
 import org.datpham.foodlink.repository.IngredientRepository;
+import org.datpham.foodlink.repository.OrderItemRepository;
 import org.datpham.foodlink.repository.RecipeRepository;
 import org.datpham.foodlink.repository.UserRepository;
 import org.datpham.foodlink.service.DishRecommendationService;
@@ -41,6 +44,7 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
     private final DishRecommendationRepository dishRecommendationRepository;
     private final DishCategoryRepository dishCategoryRepository;
     private final IngredientRepository ingredientRepository;
+    private final OrderItemRepository orderItemRepository;
     private final GenaiService genaiService;
     private final ObjectMapper objectMapper;
 
@@ -85,9 +89,11 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
                 .filter(r -> r.getStatus() == Recipe.RecipeStatus.published)
                 .orElseThrow(() -> new BusinessException("Recipe not found", HttpStatus.NOT_FOUND));
 
-        return dishRecommendationRepository.findByUser_IdAndRecipe_Id(user.getId(), recipeId)
+        DishRecommendationResponse response = dishRecommendationRepository.findByUser_IdAndRecipe_Id(user.getId(), recipeId)
                 .map(record -> toResponse(record, true))
                 .orElseGet(() -> toUnevaluatedResponse(recipe, true));
+
+        return enrichWithRatings(response, user.getId());
     }
 
     @Override
@@ -218,11 +224,17 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
                 .findAllByUser_IdOrderByScoreDesc(user.getId())
                 .stream()
                 .collect(Collectors.toMap(r -> r.getRecipe().getId(), r -> r, (left, right) -> left));
+        Map<String, DishRatingSummaryResponse> ratingSummaryMap = buildRatingSummaryMap(
+                publishedRecipes.stream().map(Recipe::getId).toList()
+        );
 
         List<DishRecommendationResponse> merged = publishedRecipes.stream()
                 .map(recipe -> {
                     DishRecommendation recommendation = recommendationMap.get(recipe.getId());
-                    return recommendation != null ? toResponse(recommendation, false) : toUnevaluatedResponse(recipe, false);
+                    DishRecommendationResponse response = recommendation != null
+                            ? toResponse(recommendation, false)
+                            : toUnevaluatedResponse(recipe, false);
+                    return withRatingSummary(response, ratingSummaryMap.get(recipe.getId()));
                 })
                 .filter(item -> matchEvaluatedFilter(item, normalizedEvaluated))
                 .filter(item -> matchSuitableFilter(item, normalizedSuitable))
@@ -483,6 +495,9 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
                 .suitable(recommendation.getSuitable())
                 .reason(recommendation.getReason())
                 .suggestion(recommendation.getSuggestion())
+                .ratingSummary(null)
+                .myRating(null)
+                .reviews(includeDetails ? List.of() : null)
                 .ingredients(ingredients)
                 .nutritionSummary(nutritionSummary)
                 .build();
@@ -518,8 +533,109 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
                 .suitable(false)
                 .reason(null)
                 .suggestion(null)
+                .ratingSummary(null)
+                .myRating(null)
+                .reviews(includeDetails ? List.of() : null)
                 .ingredients(ingredients)
                 .nutritionSummary(nutritionSummary)
+                .build();
+    }
+
+    private Map<String, DishRatingSummaryResponse> buildRatingSummaryMap(List<String> recipeIds) {
+        if (recipeIds == null || recipeIds.isEmpty()) {
+            return Map.of();
+        }
+
+        return orderItemRepository.findRatingSummariesByRecipeIds(recipeIds).stream()
+                .collect(Collectors.toMap(
+                        OrderItemRepository.RecipeRatingSummaryProjection::getRecipeId,
+                        item -> DishRatingSummaryResponse.builder()
+                                .averageRating(item.getAverageRating() == null
+                                        ? null
+                                        : BigDecimal.valueOf(item.getAverageRating()).setScale(1, RoundingMode.HALF_UP))
+                                .totalRatings(item.getTotalRatings())
+                                .build()
+                ));
+    }
+
+    private DishRecommendationResponse withRatingSummary(DishRecommendationResponse response, DishRatingSummaryResponse ratingSummary) {
+        return DishRecommendationResponse.builder()
+                .recipeId(response.getRecipeId())
+                .recipeName(response.getRecipeName())
+                .imageUrl(response.getImageUrl())
+                .recipeDescription(response.getRecipeDescription())
+                .recipeInstructions(response.getRecipeInstructions())
+                .prepTimeMin(response.getPrepTimeMin())
+                .cookTimeMin(response.getCookTimeMin())
+                .baseServings(response.getBaseServings())
+                .totalIngredientPrice(response.getTotalIngredientPrice())
+                .pricePerServing(response.getPricePerServing())
+                .category(response.getCategory())
+                .dishCategories(response.getDishCategories())
+                .evaluated(response.getEvaluated())
+                .score(response.getScore())
+                .suitable(response.getSuitable())
+                .reason(response.getReason())
+                .suggestion(response.getSuggestion())
+                .ratingSummary(ratingSummary != null
+                        ? ratingSummary
+                        : DishRatingSummaryResponse.builder().averageRating(null).totalRatings(0L).build())
+                .myRating(response.getMyRating())
+                .reviews(response.getReviews())
+                .ingredients(response.getIngredients())
+                .nutritionSummary(response.getNutritionSummary())
+                .build();
+    }
+
+    private DishRecommendationResponse enrichWithRatings(DishRecommendationResponse response, String currentUserId) {
+        List<DishReviewResponse> reviews = orderItemRepository.findReviewsByRecipeId(response.getRecipeId()).stream()
+                .map(row -> DishReviewResponse.builder()
+                        .userId(row.getUserId())
+                        .userFullName(row.getUserFullName())
+                        .rating(row.getRating())
+                        .comment(row.getComment())
+                        .ratedAt(row.getRatedAt())
+                        .mine(Objects.equals(currentUserId, row.getUserId()))
+                        .build())
+                .toList();
+
+        DishReviewResponse myRating = reviews.stream()
+                .filter(review -> Boolean.TRUE.equals(review.getMine()))
+                .findFirst()
+                .orElse(null);
+
+        DishRatingSummaryResponse ratingSummary = reviews.isEmpty()
+                ? DishRatingSummaryResponse.builder().averageRating(null).totalRatings(0L).build()
+                : DishRatingSummaryResponse.builder()
+                        .averageRating(BigDecimal.valueOf(
+                                reviews.stream().mapToInt(DishReviewResponse::getRating).average().orElse(0)
+                        ).setScale(1, RoundingMode.HALF_UP))
+                        .totalRatings((long) reviews.size())
+                        .build();
+
+        return DishRecommendationResponse.builder()
+                .recipeId(response.getRecipeId())
+                .recipeName(response.getRecipeName())
+                .imageUrl(response.getImageUrl())
+                .recipeDescription(response.getRecipeDescription())
+                .recipeInstructions(response.getRecipeInstructions())
+                .prepTimeMin(response.getPrepTimeMin())
+                .cookTimeMin(response.getCookTimeMin())
+                .baseServings(response.getBaseServings())
+                .totalIngredientPrice(response.getTotalIngredientPrice())
+                .pricePerServing(response.getPricePerServing())
+                .category(response.getCategory())
+                .dishCategories(response.getDishCategories())
+                .evaluated(response.getEvaluated())
+                .score(response.getScore())
+                .suitable(response.getSuitable())
+                .reason(response.getReason())
+                .suggestion(response.getSuggestion())
+                .ratingSummary(ratingSummary)
+                .myRating(myRating)
+                .reviews(reviews)
+                .ingredients(response.getIngredients())
+                .nutritionSummary(response.getNutritionSummary())
                 .build();
     }
 
