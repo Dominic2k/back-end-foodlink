@@ -14,7 +14,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.*;
+import org.datpham.foodlink.service.CloudinaryService;
+import java.io.IOException;
 
 import java.util.Map;
 
@@ -26,6 +29,17 @@ public class AdminRecipeController {
 
     private final RecipeService recipeService;
     private final ActivityLogService activityLogService;
+    private final CloudinaryService cloudinaryService;
+
+    @PostMapping("/upload-image")
+    public ResponseEntity<BaseResponse<String>> uploadImage(@RequestParam("file") MultipartFile file) {
+        try {
+            String url = cloudinaryService.uploadImage(file, "recipes");
+            return ResponseEntity.ok(new BaseResponse<>(url, "Upload successful", 200));
+        } catch (IOException e) {
+            return ResponseEntity.status(500).body(new BaseResponse<>(null, "Upload failed: " + e.getMessage(), 500));
+        }
+    }
 
     @GetMapping
     public ResponseEntity<BaseResponse<Page<RecipeResponse>>> getAll(

@@ -15,6 +15,9 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.datpham.foodlink.service.CloudinaryService;
+import java.io.IOException;
 
 @RestController
 @RequestMapping("/admin/health-conditions")
@@ -24,6 +27,17 @@ public class AdminHealthConditionController {
 
     private final HealthConditionService healthConditionService;
     private final ActivityLogService activityLogService;
+    private final CloudinaryService cloudinaryService;
+
+    @PostMapping("/upload-image")
+    public ResponseEntity<BaseResponse<String>> uploadImage(@RequestParam("file") MultipartFile file) {
+        try {
+            String url = cloudinaryService.uploadImage(file, "health-conditions");
+            return ResponseEntity.ok(new BaseResponse<>(url, "Upload successful", 200));
+        } catch (IOException e) {
+            return ResponseEntity.status(500).body(new BaseResponse<>(null, "Upload failed: " + e.getMessage(), 500));
+        }
+    }
 
     @GetMapping
     public ResponseEntity<BaseResponse<Page<HealthConditionResponse>>> getAll(
