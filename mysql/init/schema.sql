@@ -241,6 +241,9 @@ CREATE TABLE order_items (
                              servings INT NOT NULL,
                              price_per_serving_snapshot DECIMAL(12,2),
                              line_total DECIMAL(12,2),
+                             dish_rating INT,
+                             dish_rating_comment TEXT,
+                             dish_rated_at DATETIME,
 
                              CONSTRAINT fk_oi_order
                                  FOREIGN KEY (order_id) REFERENCES orders(order_id)

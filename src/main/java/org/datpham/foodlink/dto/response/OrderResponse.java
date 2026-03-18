@@ -36,6 +36,9 @@ public class OrderResponse {
         private Integer servings;
         private BigDecimal pricePerServingSnapshot;
         private BigDecimal lineTotal;
+        private Integer dishRating;
+        private String dishRatingComment;
+        private LocalDateTime dishRatedAt;
         private List<OrderIngredientResponse> ingredients;
     }
 

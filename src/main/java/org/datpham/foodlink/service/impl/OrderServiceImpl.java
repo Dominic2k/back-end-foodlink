@@ -1,7 +1,9 @@
 package org.datpham.foodlink.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import org.datpham.foodlink.dto.request.OrderItemRatingRequest;
 import org.datpham.foodlink.dto.request.OrderRequest;
+import org.datpham.foodlink.dto.response.OrderItemRatingResponse;
 import org.datpham.foodlink.dto.response.OrderResponse;
 import org.datpham.foodlink.entity.Ingredient;
 import org.datpham.foodlink.entity.Order;
@@ -27,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -196,6 +199,43 @@ public class OrderServiceImpl implements OrderService {
 
         Order saved = orderRepository.save(order);
         return toResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public OrderItemRatingResponse submitDishRating(String orderId, String orderItemId, OrderItemRatingRequest request) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        Order order = orderRepository.findByIdAndUserEmail(orderId, email)
+                .orElseThrow(() -> new BusinessException("Order not found", HttpStatus.NOT_FOUND));
+
+        if (order.getStatus() != Order.OrderStatus.completed) {
+            throw new BusinessException("Only completed orders can be rated", HttpStatus.BAD_REQUEST);
+        }
+
+        OrderItem orderItem = order.getOrderItems().stream()
+                .filter(item -> item.getId() != null && item.getId().equals(orderItemId))
+                .findFirst()
+                .orElseThrow(() -> new BusinessException("Order item not found", HttpStatus.NOT_FOUND));
+
+        if (orderItem.getDishRating() != null) {
+            throw new BusinessException("Dish rating already submitted", HttpStatus.BAD_REQUEST);
+        }
+
+        orderItem.setDishRating(request.getRating());
+        orderItem.setDishRatingComment(normalizeComment(request.getComment()));
+        orderItem.setDishRatedAt(LocalDateTime.now());
+
+        orderRepository.save(order);
+
+        return OrderItemRatingResponse.builder()
+                .orderId(order.getId())
+                .orderItemId(orderItem.getId())
+                .recipeId(orderItem.getRecipe() != null ? orderItem.getRecipe().getId() : null)
+                .recipeName(orderItem.getRecipe() != null ? orderItem.getRecipe().getName() : null)
+                .rating(orderItem.getDishRating())
+                .comment(orderItem.getDishRatingComment())
+                .ratedAt(orderItem.getDishRatedAt())
+                .build();
     }
 
     private PreparedOrder prepareOrder(List<OrderRequest.OrderItemRequest> requests) {
@@ -419,6 +459,9 @@ public class OrderServiceImpl implements OrderService {
                         .servings(item.getServings())
                         .pricePerServingSnapshot(item.getPricePerServingSnapshot())
                         .lineTotal(item.getLineTotal())
+                        .dishRating(item.getDishRating())
+                        .dishRatingComment(item.getDishRatingComment())
+                        .dishRatedAt(item.getDishRatedAt())
                         .ingredients(item.getIngredientSnapshots() != null
                                 ? item.getIngredientSnapshots().stream()
                                 .map(snapshot -> OrderResponse.OrderIngredientResponse.builder()
@@ -454,6 +497,14 @@ public class OrderServiceImpl implements OrderService {
 
     private BigDecimal zeroIfNull(BigDecimal value) {
         return value == null ? ZERO : value;
+    }
+
+    private String normalizeComment(String comment) {
+        if (comment == null) {
+            return null;
+        }
+        String trimmed = comment.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     private BigDecimal scaleMoney(BigDecimal value) {
