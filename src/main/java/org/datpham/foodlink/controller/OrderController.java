@@ -2,8 +2,10 @@ package org.datpham.foodlink.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.datpham.foodlink.dto.request.OrderItemRatingRequest;
 import org.datpham.foodlink.dto.request.OrderRequest;
 import org.datpham.foodlink.common.BaseResponse;
+import org.datpham.foodlink.dto.response.OrderItemRatingResponse;
 import org.datpham.foodlink.dto.response.OrderResponse;
 import org.datpham.foodlink.service.OrderService;
 import org.springframework.data.domain.Page;
@@ -43,5 +45,14 @@ public class OrderController {
     public ResponseEntity<BaseResponse<OrderResponse>> cancelMyOrder(@PathVariable String id) {
         OrderResponse response = orderService.cancelMyOrder(id);
         return ResponseEntity.ok(new BaseResponse<>(response, "Order canceled successfully", 200));
+    }
+
+    @PostMapping("/{id}/items/{itemId}/rating")
+    public ResponseEntity<BaseResponse<OrderItemRatingResponse>> submitDishRating(
+            @PathVariable String id,
+            @PathVariable String itemId,
+            @Valid @RequestBody OrderItemRatingRequest request) {
+        OrderItemRatingResponse response = orderService.submitDishRating(id, itemId, request);
+        return ResponseEntity.ok(new BaseResponse<>(response, "Dish rating submitted successfully", 200));
     }
 }

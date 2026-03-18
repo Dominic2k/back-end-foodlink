@@ -36,6 +36,15 @@ public class OrderItem {
     @Column(name = "line_total", precision = 12, scale = 2)
     private BigDecimal lineTotal;
 
+    @Column(name = "dish_rating")
+    private Integer dishRating;
+
+    @Column(name = "dish_rating_comment", columnDefinition = "TEXT")
+    private String dishRatingComment;
+
+    @Column(name = "dish_rated_at")
+    private java.time.LocalDateTime dishRatedAt;
+
     @OneToMany(mappedBy = "orderItem", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<OrderItemIngredient> ingredientSnapshots = new ArrayList<>();
 }
