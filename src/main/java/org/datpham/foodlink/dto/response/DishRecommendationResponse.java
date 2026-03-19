@@ -28,6 +28,9 @@ public class DishRecommendationResponse {
     private Boolean suitable;
     private String reason;
     private String suggestion;
+    private DishRatingSummaryResponse ratingSummary;
+    private DishReviewResponse myRating;
+    private List<DishReviewResponse> reviews;
     private List<RecommendationIngredientDetailResponse> ingredients;
     private RecommendationNutritionSummaryResponse nutritionSummary;
 }
