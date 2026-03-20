@@ -21,6 +21,9 @@ public class AdminStatsResponse {
     private long publishedRecipes;
     private long totalOrders;
     private long pendingOrders;
+    private long confirmedOrders;
+    private long completedOrders;
+    private long canceledOrders;
     private long todayActivities;
     private long totalAppVisits;
     private long todayAppVisits;

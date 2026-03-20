@@ -104,6 +104,9 @@ public class AdminServiceImpl implements AdminService {
         long publishedRecipes = recipeRepository.countByStatus(Recipe.RecipeStatus.published);
         long totalOrders = orderRepository.count();
         long pendingOrders = orderRepository.countByStatus(Order.OrderStatus.pending);
+        long confirmedOrders = orderRepository.countByStatus(Order.OrderStatus.confirmed);
+        long completedOrders = orderRepository.countByStatus(Order.OrderStatus.completed);
+        long canceledOrders = orderRepository.countByStatus(Order.OrderStatus.canceled);
 
         // Activity stats
         long todayActivities = activityLogService.countTodayActivities();
@@ -127,6 +130,9 @@ public class AdminServiceImpl implements AdminService {
                 .publishedRecipes(publishedRecipes)
                 .totalOrders(totalOrders)
                 .pendingOrders(pendingOrders)
+                .confirmedOrders(confirmedOrders)
+                .completedOrders(completedOrders)
+                .canceledOrders(canceledOrders)
                 .todayActivities(todayActivities)
                 .totalAppVisits(totalAppVisits)
                 .todayAppVisits(todayAppVisits)
