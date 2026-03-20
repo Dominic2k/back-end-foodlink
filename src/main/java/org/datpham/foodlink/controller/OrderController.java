@@ -53,6 +53,15 @@ public class OrderController {
             @PathVariable String itemId,
             @Valid @RequestBody OrderItemRatingRequest request) {
         OrderItemRatingResponse response = orderService.submitDishRating(id, itemId, request);
-        return ResponseEntity.ok(new BaseResponse<>(response, "Dish rating submitted successfully", 200));
+        return ResponseEntity.ok(new BaseResponse<>(response, "Dish rating saved successfully", 200));
+    }
+
+    @PutMapping("/{id}/items/{itemId}/rating")
+    public ResponseEntity<BaseResponse<OrderItemRatingResponse>> updateDishRating(
+            @PathVariable String id,
+            @PathVariable String itemId,
+            @Valid @RequestBody OrderItemRatingRequest request) {
+        OrderItemRatingResponse response = orderService.submitDishRating(id, itemId, request);
+        return ResponseEntity.ok(new BaseResponse<>(response, "Dish rating updated successfully", 200));
     }
 }
