@@ -234,6 +234,33 @@ public class OrderServiceImpl implements OrderService {
                 .build();
     }
 
+    @Override
+    @Transactional
+    public void deleteDishRating(String orderId, String orderItemId) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        Order order = orderRepository.findByIdAndUserEmail(orderId, email)
+                .orElseThrow(() -> new BusinessException("Order not found", HttpStatus.NOT_FOUND));
+
+        if (order.getStatus() != Order.OrderStatus.completed) {
+            throw new BusinessException("Only completed orders can remove ratings", HttpStatus.BAD_REQUEST);
+        }
+
+        OrderItem orderItem = order.getOrderItems().stream()
+                .filter(item -> item.getId() != null && item.getId().equals(orderItemId))
+                .findFirst()
+                .orElseThrow(() -> new BusinessException("Order item not found", HttpStatus.NOT_FOUND));
+
+        if (orderItem.getDishRating() == null) {
+            throw new BusinessException("Dish rating not found", HttpStatus.NOT_FOUND);
+        }
+
+        orderItem.setDishRating(null);
+        orderItem.setDishRatingComment(null);
+        orderItem.setDishRatedAt(null);
+
+        orderRepository.save(order);
+    }
+
     private PreparedOrder prepareOrder(List<OrderRequest.OrderItemRequest> requests) {
         List<PendingOrderItem> pendingItems = new ArrayList<>();
         List<String> ingredientIds = new ArrayList<>();
