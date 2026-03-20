@@ -217,10 +217,6 @@ public class OrderServiceImpl implements OrderService {
                 .findFirst()
                 .orElseThrow(() -> new BusinessException("Order item not found", HttpStatus.NOT_FOUND));
 
-        if (orderItem.getDishRating() != null) {
-            throw new BusinessException("Dish rating already submitted", HttpStatus.BAD_REQUEST);
-        }
-
         orderItem.setDishRating(request.getRating());
         orderItem.setDishRatingComment(normalizeComment(request.getComment()));
         orderItem.setDishRatedAt(LocalDateTime.now());
