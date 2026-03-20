@@ -3,6 +3,7 @@ package org.datpham.foodlink.service.impl;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.datpham.foodlink.dto.request.RecipeRequest;
+import org.datpham.foodlink.dto.response.DishRatingSummaryResponse;
 import org.datpham.foodlink.dto.response.RecipeResponse;
 import org.datpham.foodlink.entity.DishCategory;
 import org.datpham.foodlink.entity.Ingredient;
@@ -12,13 +13,16 @@ import org.datpham.foodlink.entity.User;
 import org.datpham.foodlink.exception.BusinessException;
 import org.datpham.foodlink.repository.DishCategoryRepository;
 import org.datpham.foodlink.repository.IngredientRepository;
+import org.datpham.foodlink.repository.OrderItemRepository;
 import org.datpham.foodlink.repository.RecipeRepository;
+import org.datpham.foodlink.repository.UserRepository;
 import org.datpham.foodlink.service.RecipeService;
 import org.datpham.foodlink.specification.RecipeSpecification;
 import org.datpham.foodlink.util.IngredientUnitSupport;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +39,8 @@ public class RecipeServiceImpl implements RecipeService {
     private final RecipeRepository recipeRepository;
     private final IngredientRepository ingredientRepository;
     private final DishCategoryRepository dishCategoryRepository;
+    private final OrderItemRepository orderItemRepository;
+    private final UserRepository userRepository;
     private final EntityManager entityManager;
 
     @Override
@@ -67,6 +73,10 @@ public class RecipeServiceImpl implements RecipeService {
     @Override
     @Transactional
     public RecipeResponse createRecipe(RecipeRequest request) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findByEmail(email)
+                .orElseThrow(() -> new BusinessException("User not found", HttpStatus.UNAUTHORIZED));
+
         // Resolve all ingredient IDs first (may create new ingredients)
         List<ResolvedIngredient> resolvedIngredients = new ArrayList<>();
         if (request.getIngredients() != null && !request.getIngredients().isEmpty()) {
@@ -89,6 +99,7 @@ public class RecipeServiceImpl implements RecipeService {
         recipe.setCookTimeMin(request.getCookTimeMin());
         recipe.setBaseServings(request.getBaseServings() != null ? request.getBaseServings() : 1);
         recipe.setImageUrl(request.getImageUrl());
+        recipe.setCreatedBy(currentUser);
 
         if (request.getStatus() != null) {
             try {
@@ -253,9 +264,32 @@ public class RecipeServiceImpl implements RecipeService {
                 .createdByEmail(getCreatedByEmail(recipe))
                 .createdAt(recipe.getCreatedAt())
                 .updatedAt(recipe.getUpdatedAt())
+                .ratingSummary(getRatingSummary(recipe.getId()))
                 .ingredients(ingredientItems)
                 .categories(mapCategories(recipe))
                 .build();
+    }
+
+    private DishRatingSummaryResponse getRatingSummary(String recipeId) {
+        if (recipeId == null || recipeId.isBlank()) {
+            return DishRatingSummaryResponse.builder()
+                    .averageRating(null)
+                    .totalRatings(0L)
+                    .build();
+        }
+
+        return orderItemRepository.findRatingSummariesByRecipeIds(List.of(recipeId)).stream()
+                .findFirst()
+                .map(item -> DishRatingSummaryResponse.builder()
+                        .averageRating(item.getAverageRating() == null
+                                ? null
+                                : BigDecimal.valueOf(item.getAverageRating()).setScale(1, RoundingMode.HALF_UP))
+                        .totalRatings(item.getTotalRatings() == null ? 0L : item.getTotalRatings())
+                        .build())
+                .orElseGet(() -> DishRatingSummaryResponse.builder()
+                        .averageRating(null)
+                        .totalRatings(0L)
+                        .build());
     }
 
     private BigDecimal calculateTotalIngredientPrice(Recipe recipe) {

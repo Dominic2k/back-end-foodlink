@@ -26,6 +26,7 @@ public class RecipeResponse {
     private String createdByEmail;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private DishRatingSummaryResponse ratingSummary;
     private List<RecipeIngredientItem> ingredients;
     private List<CategoryItem> categories;
 
