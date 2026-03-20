@@ -64,4 +64,12 @@ public class OrderController {
         OrderItemRatingResponse response = orderService.submitDishRating(id, itemId, request);
         return ResponseEntity.ok(new BaseResponse<>(response, "Dish rating updated successfully", 200));
     }
+
+    @DeleteMapping("/{id}/items/{itemId}/rating")
+    public ResponseEntity<BaseResponse<Void>> deleteDishRating(
+            @PathVariable String id,
+            @PathVariable String itemId) {
+        orderService.deleteDishRating(id, itemId);
+        return ResponseEntity.ok(new BaseResponse<>(null, "Dish rating deleted successfully", 200));
+    }
 }

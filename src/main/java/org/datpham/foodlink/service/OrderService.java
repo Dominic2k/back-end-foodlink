@@ -16,4 +16,5 @@ public interface OrderService {
     OrderResponse updateOrderStatus(String id, String status);
     OrderResponse createOrder(org.datpham.foodlink.dto.request.OrderRequest request);
     OrderItemRatingResponse submitDishRating(String orderId, String orderItemId, OrderItemRatingRequest request);
+    void deleteDishRating(String orderId, String orderItemId);
 }
