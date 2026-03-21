@@ -13,6 +13,8 @@ import org.datpham.foodlink.dto.response.RecommendationNutritionSummaryResponse;
 import org.datpham.foodlink.dto.response.RecommendationPageResponse;
 import org.datpham.foodlink.entity.*;
 import org.datpham.foodlink.exception.BusinessException;
+import org.datpham.foodlink.recommendation.RecommendationMetricContext;
+import org.datpham.foodlink.recommendation.RecommendationMetricFactory;
 import org.datpham.foodlink.repository.DishCategoryRepository;
 import org.datpham.foodlink.repository.DishRecommendationRepository;
 import org.datpham.foodlink.repository.FamilyMemberRepository;
@@ -47,6 +49,7 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
     private final OrderItemRepository orderItemRepository;
     private final GenaiService genaiService;
     private final ObjectMapper objectMapper;
+    private final RecommendationMetricFactory recommendationMetricFactory;
 
     @Override
     @Transactional
@@ -85,6 +88,7 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
     @Transactional(readOnly = true)
     public DishRecommendationResponse getRecommendationDetailForCurrentUser(String recipeId) {
         User user = getCurrentUser();
+        List<FamilyMember> members = familyMemberRepository.findAllByUserIdWithConditions(user.getId());
         Recipe recipe = recipeRepository.findById(recipeId)
                 .filter(r -> r.getStatus() == Recipe.RecipeStatus.published)
                 .orElseThrow(() -> new BusinessException("Recipe not found", HttpStatus.NOT_FOUND));
@@ -93,7 +97,8 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
                 .map(record -> toResponse(record, true))
                 .orElseGet(() -> toUnevaluatedResponse(recipe, true));
 
-        return enrichWithRatings(response, user.getId());
+        DishRecommendationResponse ratedResponse = enrichWithRatings(response, user.getId());
+        return withRecommendationScore(ratedResponse, recipe, members, ratedResponse.getRatingSummary());
     }
 
     @Override
@@ -218,6 +223,7 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
         String keyword = q == null ? "" : q.trim().toLowerCase();
         String normalizedIngredientCategory = ingredientCategory == null ? "" : ingredientCategory.trim().toLowerCase();
         String normalizedDishCategory = dishCategory == null ? "" : dishCategory.trim().toLowerCase();
+        List<FamilyMember> members = familyMemberRepository.findAllByUserIdWithConditions(user.getId());
 
         List<Recipe> publishedRecipes = recipeRepository.findByStatus(Recipe.RecipeStatus.published);
         Map<String, DishRecommendation> recommendationMap = dishRecommendationRepository
@@ -234,7 +240,8 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
                     DishRecommendationResponse response = recommendation != null
                             ? toResponse(recommendation, false)
                             : toUnevaluatedResponse(recipe, false);
-                    return withRatingSummary(response, ratingSummaryMap.get(recipe.getId()));
+                    DishRecommendationResponse withRatings = withRatingSummary(response, ratingSummaryMap.get(recipe.getId()));
+                    return withRecommendationScore(withRatings, recipe, members, withRatings.getRatingSummary());
                 })
                 .filter(item -> matchEvaluatedFilter(item, normalizedEvaluated))
                 .filter(item -> matchSuitableFilter(item, normalizedSuitable))
@@ -301,6 +308,9 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
 
         Map<String, Recipe> recipeMap = recipes.stream()
                 .collect(Collectors.toMap(Recipe::getId, r -> r));
+        Map<String, DishRatingSummaryResponse> ratingSummaryMap = buildRatingSummaryMap(
+                recipes.stream().map(Recipe::getId).toList()
+        );
 
         List<DishRecommendation> saved = new ArrayList<>();
         int skippedUnknownRecipe = 0;
@@ -328,8 +338,13 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
                 saved.size(), userId, skippedUnknownRecipe);
 
         List<DishRecommendationResponse> response = saved.stream()
-                .sorted(Comparator.comparing(DishRecommendation::getScore).reversed())
-                .map(record -> toResponse(record, false))
+                .map(record -> withRecommendationScore(
+                        toResponse(record, false),
+                        record.getRecipe(),
+                        members,
+                        ratingSummaryMap.get(record.getRecipe().getId())
+                ))
+                .sorted(Comparator.comparing(DishRecommendationResponse::getScore, Comparator.nullsLast(Comparator.reverseOrder())))
                 .toList();
 
         log.info("Recommendation evaluation completed for user {} in {} ms",
@@ -491,6 +506,7 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
                         ? recommendation.getRecipe().getCategories().stream().map(DishCategory::getName).toList()
                         : List.of())
                 .evaluated(true)
+                .aiScore(recommendation.getScore())
                 .score(recommendation.getScore())
                 .suitable(recommendation.getSuitable())
                 .reason(recommendation.getReason())
@@ -529,6 +545,7 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
                         ? recipe.getCategories().stream().map(DishCategory::getName).toList()
                         : List.of())
                 .evaluated(false)
+                .aiScore(0)
                 .score(0)
                 .suitable(false)
                 .reason(null)
@@ -573,6 +590,7 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
                 .category(response.getCategory())
                 .dishCategories(response.getDishCategories())
                 .evaluated(response.getEvaluated())
+                .aiScore(response.getAiScore())
                 .score(response.getScore())
                 .suitable(response.getSuitable())
                 .reason(response.getReason())
@@ -627,6 +645,7 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
                 .category(response.getCategory())
                 .dishCategories(response.getDishCategories())
                 .evaluated(response.getEvaluated())
+                .aiScore(response.getAiScore())
                 .score(response.getScore())
                 .suitable(response.getSuitable())
                 .reason(response.getReason())
@@ -709,6 +728,104 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
                 .fat(scale2(fat))
                 .coveredIngredients(covered)
                 .totalIngredients(ingredients.size())
+                .build();
+    }
+
+    private int calculateCompositeScore(
+            Recipe recipe,
+            List<FamilyMember> members,
+            Integer aiScore,
+            DishRatingSummaryResponse ratingSummary,
+            boolean includeAiMetric
+    ) {
+        RecommendationNutritionSummaryResponse nutritionSummary = buildNutritionSummary(buildIngredientDetails(recipe));
+        RecommendationMetricContext context = new RecommendationMetricContext(
+                recipe,
+                members == null ? List.of() : members,
+                aiScore == null ? 0 : aiScore,
+                ratingSummary != null ? ratingSummary : DishRatingSummaryResponse.builder().averageRating(null).totalRatings(0L).build(),
+                nutritionSummary
+        );
+
+        List<org.datpham.foodlink.recommendation.WeightedRecommendationMetric> activeMetrics = recommendationMetricFactory.createBaseMetrics().stream()
+                .filter(metric -> includeAiMetric || !"aiSuitability".equals(metric.metric().key()))
+                .toList();
+
+        BigDecimal totalWeight = activeMetrics.stream()
+                .map(org.datpham.foodlink.recommendation.WeightedRecommendationMetric::weight)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        if (activeMetrics.isEmpty() || totalWeight.compareTo(BigDecimal.ZERO) <= 0) {
+            return 0;
+        }
+
+        BigDecimal weightedScore = activeMetrics.stream()
+                .map(metric -> metric.weight().multiply(metric.metric().evaluate(context)))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal normalizedScore = weightedScore.divide(totalWeight, 4, RoundingMode.HALF_UP);
+
+        BigDecimal safetyPenalty = recommendationMetricFactory.createSafetyMetric().evaluate(context);
+        BigDecimal finalScore = normalizedScore.multiply(safetyPenalty)
+                .multiply(new BigDecimal("100"))
+                .setScale(0, RoundingMode.HALF_UP)
+                .max(BigDecimal.ZERO)
+                .min(new BigDecimal("100"));
+
+        if (log.isDebugEnabled()) {
+            Map<String, BigDecimal> metricBreakdown = activeMetrics.stream()
+                    .collect(Collectors.toMap(
+                            metric -> metric.metric().key(),
+                            metric -> metric.metric().evaluate(context),
+                            (left, right) -> right,
+                            LinkedHashMap::new
+                    ));
+            metricBreakdown.put(recommendationMetricFactory.createSafetyMetric().key(), safetyPenalty);
+            log.debug("Recommendation metrics for recipe {}: aiScore={}, includeAiMetric={}, metrics={}, finalScore={}",
+                    recipe.getId(), aiScore, includeAiMetric, metricBreakdown, finalScore);
+        }
+
+        return finalScore.intValue();
+    }
+
+    private DishRecommendationResponse withRecommendationScore(
+            DishRecommendationResponse response,
+            Recipe recipe,
+            List<FamilyMember> members,
+            DishRatingSummaryResponse ratingSummary
+    ) {
+        int aiScore = response.getAiScore() == null ? 0 : response.getAiScore();
+        int recommendationScore = calculateCompositeScore(
+                recipe,
+                members,
+                response.getAiScore(),
+                ratingSummary,
+                Boolean.TRUE.equals(response.getEvaluated())
+        );
+
+        return DishRecommendationResponse.builder()
+                .recipeId(response.getRecipeId())
+                .recipeName(response.getRecipeName())
+                .imageUrl(response.getImageUrl())
+                .recipeDescription(response.getRecipeDescription())
+                .recipeInstructions(response.getRecipeInstructions())
+                .prepTimeMin(response.getPrepTimeMin())
+                .cookTimeMin(response.getCookTimeMin())
+                .baseServings(response.getBaseServings())
+                .totalIngredientPrice(response.getTotalIngredientPrice())
+                .pricePerServing(response.getPricePerServing())
+                .category(response.getCategory())
+                .dishCategories(response.getDishCategories())
+                .evaluated(response.getEvaluated())
+                .aiScore(aiScore)
+                .score(recommendationScore)
+                .suitable(response.getSuitable())
+                .reason(response.getReason())
+                .suggestion(response.getSuggestion())
+                .ratingSummary(response.getRatingSummary())
+                .myRating(response.getMyRating())
+                .reviews(response.getReviews())
+                .ingredients(response.getIngredients())
+                .nutritionSummary(response.getNutritionSummary())
                 .build();
     }
 
