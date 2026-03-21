@@ -861,8 +861,13 @@ public class DishRecommendationServiceImpl implements DishRecommendationService 
         if (dishCategory.isEmpty() || "all".equals(dishCategory)) {
             return true;
         }
-        // TODO: Replace with real recipe dish category matching when recipes.dish_category is introduced.
-        return true;
+        
+        if (item.getDishCategories() == null || item.getDishCategories().isEmpty()) {
+            return false;
+        }
+        
+        return item.getDishCategories().stream()
+                .anyMatch(c -> c.toLowerCase().equals(dishCategory));
     }
 
     private String extractRecipeCategory(Recipe recipe) {
