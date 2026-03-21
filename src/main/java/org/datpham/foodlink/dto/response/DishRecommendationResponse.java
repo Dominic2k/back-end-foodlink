@@ -24,6 +24,7 @@ public class DishRecommendationResponse {
     private String category; // Currently used for most frequent ingredient category
     private List<String> dishCategories;
     private Boolean evaluated;
+    private Integer aiScore;
     private Integer score;
     private Boolean suitable;
     private String reason;
