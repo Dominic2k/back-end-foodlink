@@ -16,4 +16,5 @@ public interface RecipeRepository extends JpaRepository<Recipe, String>, JpaSpec
     List<Recipe> findByStatus(Recipe.RecipeStatus status);
     Page<Recipe> findByNameContainingIgnoreCaseAndStatus(String name, Recipe.RecipeStatus status, Pageable pageable);
     long countByStatus(Recipe.RecipeStatus status);
+    List<Recipe> findTop5ByStatusOrderByPurchaseCountDesc(Recipe.RecipeStatus status);
 }

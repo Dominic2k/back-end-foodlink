@@ -97,6 +97,7 @@ public class OrderServiceImpl implements OrderService {
         }
 
         adjustStockFromExistingOrder(order, false);
+        adjustPurchaseCountFromExistingOrder(order, true);
         order.setStatus(Order.OrderStatus.canceled);
         Order saved = orderRepository.save(order);
         return toResponse(saved);
@@ -136,8 +137,10 @@ public class OrderServiceImpl implements OrderService {
 
         if (oldStatus == Order.OrderStatus.canceled && newStatus != Order.OrderStatus.canceled) {
             adjustStockFromExistingOrder(order, true);
+            adjustPurchaseCountFromExistingOrder(order, false);
         } else if (oldStatus != Order.OrderStatus.canceled && newStatus == Order.OrderStatus.canceled) {
             adjustStockFromExistingOrder(order, false);
+            adjustPurchaseCountFromExistingOrder(order, true);
         }
 
         order.setStatus(newStatus);
@@ -195,6 +198,13 @@ public class OrderServiceImpl implements OrderService {
             }
 
             order.getOrderItems().add(item);
+            
+            Recipe recipe = preparedItem.recipe();
+            if (recipe != null) {
+                int currentCount = recipe.getPurchaseCount() == null ? 0 : recipe.getPurchaseCount();
+                recipe.setPurchaseCount(currentCount + preparedItem.servings());
+                recipeRepository.save(recipe);
+            }
         }
 
         Order saved = orderRepository.save(order);
@@ -468,6 +478,27 @@ public class OrderServiceImpl implements OrderService {
                 ingredient.setStockQuantityBase(scaleQuantity(currentStock.subtract(quantity)));
             } else {
                 ingredient.setStockQuantityBase(scaleQuantity(currentStock.add(quantity)));
+            }
+        }
+    }
+
+    private void adjustPurchaseCountFromExistingOrder(Order order, boolean isCancel) {
+        if (order.getOrderItems() == null || order.getOrderItems().isEmpty()) {
+            return;
+        }
+
+        for (OrderItem item : order.getOrderItems()) {
+            Recipe recipe = item.getRecipe();
+            if (recipe != null) {
+                int currentCount = recipe.getPurchaseCount() == null ? 0 : recipe.getPurchaseCount();
+                int servings = item.getServings() != null ? item.getServings() : 1;
+                
+                if (isCancel) {
+                    recipe.setPurchaseCount(Math.max(0, currentCount - servings));
+                } else {
+                    recipe.setPurchaseCount(currentCount + servings);
+                }
+                recipeRepository.save(recipe);
             }
         }
     }

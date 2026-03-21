@@ -29,6 +29,7 @@ public class AdminStatsResponse {
     private long todayAppVisits;
     private List<DailyActivityCount> dailyActivities;
     private List<DailyActivityCount> dailyAppVisits;
+    private List<TopPurchasedRecipe> topPurchasedRecipes;
 
     @Getter
     @Builder
@@ -36,5 +37,15 @@ public class AdminStatsResponse {
     public static class DailyActivityCount {
         private String date;
         private long count;
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class TopPurchasedRecipe {
+        private String id;
+        private String name;
+        private String imageUrl;
+        private Integer purchaseCount;
     }
 }
