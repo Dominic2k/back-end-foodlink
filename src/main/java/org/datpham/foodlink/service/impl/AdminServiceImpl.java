@@ -118,6 +118,16 @@ public class AdminServiceImpl implements AdminService {
         long todayAppVisits = appVisitRepository.countByVisitedAtAfter(startOfToday);
         List<AdminStatsResponse.DailyActivityCount> dailyAppVisits = buildDailyVisits();
 
+        // Top 5 purchased recipes
+        List<AdminStatsResponse.TopPurchasedRecipe> topPurchasedRecipes = recipeRepository.findTop5ByStatusOrderByPurchaseCountDesc(Recipe.RecipeStatus.published).stream()
+                .map(r -> AdminStatsResponse.TopPurchasedRecipe.builder()
+                        .id(r.getId())
+                        .name(r.getName())
+                        .imageUrl(r.getImageUrl())
+                        .purchaseCount(r.getPurchaseCount() == null ? 0 : r.getPurchaseCount())
+                        .build())
+                .collect(Collectors.toList());
+
         return AdminStatsResponse.builder()
                 .totalUsers(totalUsers)
                 .activeUsers(activeUsers)
@@ -138,6 +148,7 @@ public class AdminServiceImpl implements AdminService {
                 .todayAppVisits(todayAppVisits)
                 .dailyActivities(dailyActivities)
                 .dailyAppVisits(dailyAppVisits)
+                .topPurchasedRecipes(topPurchasedRecipes)
                 .build();
     }
 

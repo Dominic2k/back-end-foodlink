@@ -58,6 +58,9 @@ public class Recipe extends Auditable {
     )
     private List<DishCategory> categories = new ArrayList<>();
 
+    @Column(name = "purchase_count")
+    private Integer purchaseCount = 0;
+
     public enum RecipeStatus {
         draft, published, archived
     }
