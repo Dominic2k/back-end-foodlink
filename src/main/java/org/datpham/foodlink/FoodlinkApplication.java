@@ -2,11 +2,12 @@ package org.datpham.foodlink;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableAsync;
 
 @SpringBootApplication
+@EnableAsync
 public class FoodlinkApplication {
 
-    // TODO: Rename the application class and base package for your new project.
     public static void main(String[] args) {
         SpringApplication.run(FoodlinkApplication.class, args);
     }

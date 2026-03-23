@@ -7,7 +7,6 @@ public class PasswordValidationValidator implements ConstraintValidator<Password
 
     @Override
     public boolean isValid(String value, ConstraintValidatorContext context) {
-        // TODO: Replace with your real password policy.
         if (value == null || value.isBlank()) {
             return false;
         }

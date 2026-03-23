@@ -1,0 +1,4 @@
+﻿NAME              IMAGE                   COMMAND                  SERVICE   CREATED              STATUS                   PORTS
+mysql_db          mysql:8.0               "docker-entrypoint.s…"   db        7 minutes ago        Up 5 minutes (healthy)   0.0.0.0:3306->3306/tcp, [::]:3306->3306/tcp
+redis_server      redis:7                 "docker-entrypoint.s…"   redis     7 minutes ago        Up 5 minutes (healthy)   0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp
+spring_boot_app   back-end-foodlink-app   "java -jar applicati…"   app       About a minute ago   Up About a minute        0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp

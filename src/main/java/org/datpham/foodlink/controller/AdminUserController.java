@@ -1,0 +1,93 @@
+package org.datpham.foodlink.controller;
+
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.datpham.foodlink.common.BaseResponse;
+import org.datpham.foodlink.dto.request.AdminUpdateStatusRequest;
+import org.datpham.foodlink.dto.response.ActivityLogResponse;
+import org.datpham.foodlink.dto.response.AdminStatsResponse;
+import org.datpham.foodlink.dto.response.AdminUserResponse;
+import org.datpham.foodlink.dto.response.FamilyMemberResponse;
+import org.datpham.foodlink.entity.ActivityLog;
+import org.datpham.foodlink.service.ActivityLogService;
+import org.datpham.foodlink.service.AdminService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/admin")
+@RequiredArgsConstructor
+@PreAuthorize("@adminAuthChecker.isAdmin()")
+public class AdminUserController {
+
+    private final AdminService adminService;
+    private final ActivityLogService activityLogService;
+
+    @GetMapping("/users")
+    public ResponseEntity<BaseResponse<Page<AdminUserResponse>>> getAllUsers(
+            @RequestParam(defaultValue = "") String search,
+            @RequestParam(required = false) String role,
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir) {
+
+        Sort sort = sortDir.equalsIgnoreCase("asc")
+                ? Sort.by(sortBy).ascending()
+                : Sort.by(sortBy).descending();
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        return ResponseEntity.ok(
+                new BaseResponse<>(adminService.getAllUsers(search, role, status, pageable), "Success", 200)
+        );
+    }
+
+    @GetMapping("/users/{id}")
+    public ResponseEntity<BaseResponse<AdminUserResponse>> getUserById(@PathVariable String id) {
+        return ResponseEntity.ok(
+                new BaseResponse<>(adminService.getUserById(id), "Success", 200)
+        );
+    }
+
+    @PutMapping("/users/{id}/status")
+    public ResponseEntity<BaseResponse<AdminUserResponse>> updateUserStatus(
+            @PathVariable String id,
+            @Valid @RequestBody AdminUpdateStatusRequest request) {
+        AdminUserResponse result = adminService.updateUserStatus(id, request);
+        activityLogService.log(ActivityLog.Action.STATUS_CHANGE, "User", id,
+                "Changed user status to: " + request.getStatus() + " (" + result.getFullName() + ")");
+        return ResponseEntity.ok(
+                new BaseResponse<>(result, "Status updated successfully", 200)
+        );
+    }
+
+    @GetMapping("/users/{id}/family-members")
+    public ResponseEntity<BaseResponse<List<FamilyMemberResponse>>> getUserFamilyMembers(
+            @PathVariable String id) {
+        return ResponseEntity.ok(
+                new BaseResponse<>(adminService.getFamilyMembersByUserId(id), "Success", 200)
+        );
+    }
+
+    @GetMapping("/stats")
+    public ResponseEntity<BaseResponse<AdminStatsResponse>> getStats() {
+        return ResponseEntity.ok(
+                new BaseResponse<>(adminService.getStats(), "Success", 200)
+        );
+    }
+
+    @GetMapping("/activity-logs")
+    public ResponseEntity<BaseResponse<List<ActivityLogResponse>>> getActivityLogs() {
+        return ResponseEntity.ok(
+                new BaseResponse<>(activityLogService.getRecentLogs(), "Success", 200)
+        );
+    }
+}

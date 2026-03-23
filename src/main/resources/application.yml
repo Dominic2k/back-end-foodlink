@@ -1,16 +1,51 @@
-﻿spring:
+spring:
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+
   datasource:
-    url: ${DB_URL:jdbc:mysql://localhost:3306/your_database}
-    username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:password}
+    url: ${DB_URL:jdbc:mysql://localhost:3306/foodlink_db?useSSL=false&allowPublicKeyRetrieval=true}
+    username: ${DB_USERNAME:foodlink}
+    password: ${DB_PASSWORD:foodlink123}
+
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: update
     open-in-view: false
+
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        debug: true
+        smtp:
+          auth: true
+          starttls:
+            enable: true
 
 app:
   jwt:
-    secret: ${JWT_SECRET:change-me}
+    secret: ${JWT_SECRET:your-super-secret-jwt-key-change-this-in-production-32chars}
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+  ingredient:
+    expiring-soon-days: ${INGREDIENT_EXPIRING_SOON_DAYS:7}
 
-# TODO: Add environment-specific settings and secrets via env vars.
+stripe:
+  secret:
+    key: ${STRIPE_SECRET_KEY}
+
+cloudinary:
+  cloud-name: ${CLOUDINARY_CLOUD_NAME:}
+  api-key: ${CLOUDINARY_API_KEY:}
+  api-secret: ${CLOUDINARY_API_SECRET:}
+
+logging:
+  level:
+    root: INFO
+    org.datpham.foodlink: DEBUG
+    com.google.genai: DEBUG
+  file:
+    name: logs/app-runtime.log

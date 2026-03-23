@@ -1,0 +1,84 @@
+@token = eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJkYXRwaGFtQGdtYWlsLmNvbSIsImlhdCI6MTc3MTE3MjUzMCwianRpIjoiYjlmYThiY2UtNmVhOS00N2Q3LWJiZGMtZDRlZTAzMzA1MWViIiwiZXhwIjoxNzcxMjU4OTMwfQ.S6omKyE3pnQtn5N-gS7IDFI_xVEoQ2s0lJ9pQD3YmIA
+
+### Register
+POST http://localhost:8080/auth/register
+Content-Type: application/json
+
+{
+  "email": "testlogin@gmail.com",
+  "password": "Testlogin123",
+  "fullName": "Test Login"
+}
+
+### Login
+POST http://localhost:8080/auth/login
+Content-Type: application/json
+
+{
+  "email": "datpham@gmail.com",
+  "password": "datpham123"
+}
+
+### View profile
+GET http://localhost:8080/users/me
+Authorization: Bearer {{token}}
+
+### Update profile
+PUT http://localhost:8080/users/me
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "fullName": "Pham Duc Dat",
+  "phone": "0912345678",
+  "address": "123 Nguyen Hue, Q1, TPHCM"
+}
+
+### Get Family Members (Auto-creates 'self')
+GET http://localhost:8080/family
+Authorization: Bearer {{token}}
+
+### Get Health Conditions
+GET http://localhost:8080/family/conditions
+Authorization: Bearer {{token}}
+
+### Add Family Member
+POST http://localhost:8080/family
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "displayName": "Con trai",
+  "relationship": "child",
+  "gender": "male",
+  "birthDate": "2015-05-20",
+  "heightCm": 120.5,
+  "weightKg": 25.0,
+  "activityLevel": "high",
+  "healthNotes": "Dị ứng hải sản",
+  "conditionIds": []
+}
+
+### Evaluate recommended dishes by AI (store score/result)
+POST http://localhost:8080/recommendations/evaluate
+Authorization: Bearer {{token}}
+
+### Re-evaluate recommended dishes by AI (manual button)
+POST http://localhost:8080/recommendations/re-evaluate
+Authorization: Bearer {{token}}
+
+### Get recommendation list (paginated)
+GET http://localhost:8080/recommendations?page=0&size=8
+Authorization: Bearer {{token}}
+
+### Get recommendation list - suitable only
+GET http://localhost:8080/recommendations?page=0&size=8&evaluated=true&suitable=true
+Authorization: Bearer {{token}}
+
+### Get recommendation list - unevaluated only
+GET http://localhost:8080/recommendations?page=0&size=8&evaluated=false
+Authorization: Bearer {{token}}
+
+### Get recommendation list - by category
+GET http://localhost:8080/recommendations?page=0&size=8&category=meat
+Authorization: Bearer {{token}}

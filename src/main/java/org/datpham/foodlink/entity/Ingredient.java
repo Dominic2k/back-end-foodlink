@@ -1,0 +1,49 @@
+package org.datpham.foodlink.entity;
+
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
+import java.time.LocalDate;
+
+@Entity
+@Getter
+@Setter
+@Table(name = "ingredients")
+public class Ingredient extends Auditable {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "ingredient_id", length = 36)
+    private String id;
+
+    @Column(name = "name", nullable = false)
+    private String name;
+
+    @Column(name = "category", length = 100)
+    private String category;
+
+    @Column(name = "base_unit", nullable = false, length = 50)
+    private String baseUnit;
+
+    @Column(name = "price_per_base_unit", nullable = false, precision = 12, scale = 4)
+    private java.math.BigDecimal pricePerBaseUnit;
+
+    @Column(name = "stock_quantity_base", nullable = false, precision = 12, scale = 3)
+    private java.math.BigDecimal stockQuantityBase = java.math.BigDecimal.ZERO;
+
+    @Column(name = "image_url", length = 512)
+    private String imageUrl;
+
+    @Column(name = "expiration_date")
+    private LocalDate expirationDate;
+
+    @Column(name = "received_date")
+    private LocalDate receivedDate;
+
+    @Column(name = "is_active")
+    private Boolean isActive = true;
+
+    @OneToOne(mappedBy = "ingredient", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private IngredientNutrition nutrition;
+}
